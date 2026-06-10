@@ -1,4 +1,4 @@
-"""mimi CLI — project management and snapshot inspection built with Typer."""
+"""pyrecall CLI — project management and snapshot inspection built with Typer."""
 
 from __future__ import annotations
 
@@ -12,17 +12,17 @@ from rich.console import Console
 from rich.table import Table
 
 app = typer.Typer(
-    name="mimi",
+    name="pyrecall",
     help=(
-        "mimi — continuous fine-tuning with automatic forgetting detection.\n\n"
+        "pyrecall — continuous fine-tuning with automatic forgetting detection.\n\n"
         "Quickstart:\n\n"
-        "  mimi init --model meta-llama/Llama-3.2-1B\n\n"
+        "  pyrecall init --model meta-llama/Llama-3.2-1B\n\n"
         "  # take a snapshot before training\n"
-        "  mimi snapshot before_v1\n\n"
+        "  pyrecall snapshot before_v1\n\n"
         "  # ... run your training script ...\n\n"
-        "  mimi status   # inspect all snapshots\n"
-        "  mimi check    # compare last two snapshots\n"
-        "  mimi rollback before_v1  # if forgetting is detected"
+        "  pyrecall status   # inspect all snapshots\n"
+        "  pyrecall check    # compare last two snapshots\n"
+        "  pyrecall rollback before_v1  # if forgetting is detected"
     ),
     add_completion=False,
     rich_markup_mode="rich",
@@ -30,7 +30,7 @@ app = typer.Typer(
 
 console = Console()
 
-_CONFIG_FILE = ".mimi.json"
+_CONFIG_FILE = ".pyrecall.json"
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ def _read_config() -> dict:
     if not cfg_path.exists():
         console.print(
             f"[bold red]Error:[/bold red] No {_CONFIG_FILE} found in the current directory.\n"
-            "Run [bold]mimi init[/bold] first."
+            "Run [bold]pyrecall init[/bold] first."
         )
         raise typer.Exit(1)
     return json.loads(cfg_path.read_text())
@@ -52,7 +52,7 @@ def _write_config(data: dict) -> None:
 
 
 def _build_rollback_manager(config: dict):
-    from mimi.rollback import RollbackManager
+    from pyrecall.rollback import RollbackManager
 
     return RollbackManager(model_name=config["model_name"])
 
@@ -71,7 +71,7 @@ def init(
         typer.Option("--strategy", "-s", help="Fine-tuning strategy (only 'lora' supported)"),
     ] = "lora",
 ) -> None:
-    """Initialise mimi in the current project directory."""
+    """Initialise pyrecall in the current project directory."""
     cfg_path = Path(_CONFIG_FILE)
     if cfg_path.exists():
         console.print(
@@ -88,12 +88,12 @@ def init(
     }
     _write_config(config)
 
-    console.print(f"[green]✓ Initialised mimi[/green] with [bold]{model}[/bold] ({strategy})")
+    console.print(f"[green]✓ Initialised pyrecall[/green] with [bold]{model}[/bold] ({strategy})")
     console.print(f"[dim]  Config saved to {_CONFIG_FILE}[/dim]")
     console.print()
     console.print("Next steps:")
-    console.print("  [bold]mimi snapshot before_v1[/bold]   — take a baseline snapshot")
-    console.print("  [bold]mimi status[/bold]               — view all snapshots")
+    console.print("  [bold]pyrecall snapshot before_v1[/bold]   — take a baseline snapshot")
+    console.print("  [bold]pyrecall status[/bold]               — view all snapshots")
 
 
 @app.command()
@@ -108,7 +108,7 @@ def snapshot(
     """
     config = _read_config()
 
-    from mimi.model import Model
+    from pyrecall.model import Model
 
     model_obj = Model(config["model_name"], strategy=config.get("strategy", "lora"))
     model_obj.snapshot(name=name)
@@ -145,7 +145,7 @@ def check(
     if len(all_snaps) < 2:
         console.print(
             "[red]Error:[/red] Need at least two snapshots to run a forgetting check.\n"
-            "Run [bold]mimi snapshot <name>[/bold] to create snapshots."
+            "Run [bold]pyrecall snapshot <name>[/bold] to create snapshots."
         )
         raise typer.Exit(1)
 
@@ -162,7 +162,7 @@ def check(
         snap_before = mgr.load_snapshot(before)
         snap_after = mgr.load_snapshot(after)
 
-    from mimi.detector import ForgettingDetector
+    from pyrecall.detector import ForgettingDetector
 
     detector = ForgettingDetector(threshold=0.10)
     report = detector.compare(snap_before, snap_after)
@@ -181,7 +181,7 @@ def rollback(
     """
     Update the project config to point at a previous snapshot.
 
-    This does not reload the model in memory — it updates .mimi.json so that
+    This does not reload the model in memory — it updates .pyrecall.json so that
     the next Python session loading Model() will start from this snapshot's
     adapter weights via model.rollback(to='<name>').
 
@@ -221,7 +221,7 @@ def status() -> None:
     if not all_snaps:
         console.print(
             "[yellow]No snapshots found.[/yellow] "
-            "Run [bold]mimi snapshot <name>[/bold] to create one."
+            "Run [bold]pyrecall snapshot <name>[/bold] to create one."
         )
         return
 

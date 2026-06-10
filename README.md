@@ -1,7 +1,7 @@
-# mimi
+# pyrecall
 
-[![PyPI version](https://img.shields.io/pypi/v/mimi.svg)](https://pypi.org/project/mimi/)
-[![CI](https://github.com/Arths17/Mimi/actions/workflows/ci.yml/badge.svg)](https://github.com/Arths17/Mimi/actions/workflows/ci.yml)
+[![PyPI version](https://img.shields.io/pypi/v/pyrecall.svg)](https://pypi.org/project/pyrecall/)
+[![CI](https://github.com/Arths17/Pyrecall/actions/workflows/ci.yml/badge.svg)](https://github.com/Arths17/Pyrecall/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 
@@ -24,7 +24,7 @@ This is called **catastrophic forgetting**, and it happens to every fine-tuned m
 
 ---
 
-## mimi is a leash
+## pyrecall is a leash
 
 ```text
 Before training          After training
@@ -34,7 +34,7 @@ coding     ████████ 0.83  coding     █████░░░ 0.
 safety     █████████ 0.90  safety    █████████ 0.90  ✅  OK
 ```
 
-mimi snapshots what your model knows **before** every training run and compares it **after**. Any skill that drops more than your configured threshold gets flagged. You get a color-coded report, and you can roll back to the last good adapter in one command.
+pyrecall snapshots what your model knows **before** every training run and compares it **after**. Any skill that drops more than your configured threshold gets flagged. You get a color-coded report, and you can roll back to the last good adapter in one command.
 
 No external API. No cloud dependency. Entirely local.
 
@@ -43,7 +43,7 @@ No external API. No cloud dependency. Entirely local.
 ## Install
 
 ```bash
-pip install mimi
+pip install pyrecall
 ```
 
 ---
@@ -51,7 +51,7 @@ pip install mimi
 ## Quickstart
 
 ```python
-from mimi import Model
+from pyrecall import Model
 
 model = Model("meta-llama/Llama-3.2-1B")
 
@@ -78,12 +78,12 @@ That's it. The model is back to where it was before the dog forgot how to sit.
 
 ### 1. Snapshots
 
-When you call `model.snapshot("name")`, mimi:
+When you call `model.snapshot("name")`, pyrecall:
 
 1. Runs **20 benchmark prompts** across five skill categories
 2. Embeds each response using the model's own hidden states
 3. Scores each response against a reference answer via cosine similarity
-4. Saves scores + LoRA adapter weights to `~/.mimi/snapshots/`
+4. Saves scores + LoRA adapter weights to `~/.pyrecall/snapshots/`
 
 All local. No API calls. Works offline.
 
@@ -118,7 +118,7 @@ Any category that drops more than the threshold (default **10%**) is flagged as 
 
 ### 3. Rollback
 
-mimi stores **only the LoRA adapter** for each snapshot, not the full model. A typical adapter is a few hundred MB vs. tens of GB for the base model. Rollback reloads the base weights and applies the saved adapter:
+pyrecall stores **only the LoRA adapter** for each snapshot, not the full model. A typical adapter is a few hundred MB vs. tens of GB for the base model. Rollback reloads the base weights and applies the saved adapter:
 
 ```python
 model.rollback(to="before_fine_tune")
@@ -130,26 +130,26 @@ model.rollback(to="before_fine_tune")
 ## CLI
 
 ```bash
-# Initialise mimi in a project directory
-mimi init --model meta-llama/Llama-3.2-1B
+# Initialise pyrecall in a project directory
+pyrecall init --model meta-llama/Llama-3.2-1B
 
 # Take a snapshot (runs benchmarks + saves adapter)
-mimi snapshot before_v1
+pyrecall snapshot before_v1
 
 # Check for forgetting (compares the last two snapshots)
-mimi check
+pyrecall check
 
 # Or compare specific named snapshots
-mimi check --before before_v1 --after after_fine_tune
+pyrecall check --before before_v1 --after after_fine_tune
 
 # Rollback to a previous snapshot
-mimi rollback before_v1
+pyrecall rollback before_v1
 
 # See all snapshots and their per-category scores
-mimi status
+pyrecall status
 ```
 
-`mimi check` exits with **code 2** when forgetting is detected — drop it straight into your CI pipeline as a training gate.
+`pyrecall check` exits with **code 2** when forgetting is detected — drop it straight into your CI pipeline as a training gate.
 
 ---
 
@@ -162,10 +162,10 @@ Fine-tune continuously on production traffic without ever leaving the terminal:
 model.serve(port=8000, live_learning=True)
 ```
 
-Interactions go into a local SQLite database (`~/.mimi/live_data.db`). Once the batch threshold is reached, mimi triggers a 1-epoch LoRA fine-tune in the background. Snapshots before and after, forgetting report included.
+Interactions go into a local SQLite database (`~/.pyrecall/live_data.db`). Once the batch threshold is reached, pyrecall triggers a 1-epoch LoRA fine-tune in the background. Snapshots before and after, forgetting report included.
 
 ```python
-from mimi import LiveLearner
+from pyrecall import LiveLearner
 
 learner = LiveLearner(model, batch_size=100)
 learner.record(prompt="...", response="...")
@@ -176,7 +176,7 @@ print(learner.pending_count())   # how many examples until next fine-tune
 
 ## Supported models
 
-Any causal LM on HuggingFace Hub. mimi auto-detects LoRA target modules for:
+Any causal LM on HuggingFace Hub. pyrecall auto-detects LoRA target modules for:
 
 - **Llama** (1/2/3/3.2)
 - **Mistral** / **Mixtral**
@@ -226,7 +226,7 @@ Model(
 ## Where snapshots live
 
 ```
-~/.mimi/snapshots/<model-name>/
+~/.pyrecall/snapshots/<model-name>/
 ├── before_v1/
 │   ├── snapshot.json     ← benchmark scores per category
 │   └── adapter/          ← LoRA adapter weights (only file needed for rollback)
@@ -242,8 +242,8 @@ Model(
 Issues and PRs are welcome. Open an issue first for large changes.
 
 ```bash
-git clone https://github.com/Arths17/Mimi
-cd mimi
+git clone https://github.com/Arths17/Pyrecall
+cd pyrecall
 pip install -e ".[dev]"
 pytest
 ```

@@ -3,12 +3,12 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "mimi"
-version = "0.1.0"
+name = "pyrecall"
+version = "0.0.1"
 description = "Keep your models balanced. Continuous fine-tuning with automatic forgetting detection and skill rollback."
 readme = "README.md"
 license = { file = "LICENSE" }
-authors = [{ name = "mimi contributors" }]
+authors = [{ name = "pyrecall contributors" }]
 keywords = [
     "llm",
     "fine-tuning",
@@ -50,15 +50,15 @@ dev = [
 ]
 
 [project.scripts]
-mimi = "mimi.cli:app"
+pyrecall = "pyrecall.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/Arths17/Mimi"
-"Bug Tracker" = "https://github.com/Arths17/Mimi/issues"
-PyPI = "https://pypi.org/project/mimi"
+Homepage = "https://github.com/Arths17/Pyrecall"
+"Bug Tracker" = "https://github.com/Arths17/Pyrecall/issues"
+PyPI = "https://pypi.org/project/pyrecall"
 
 [tool.hatch.build.targets.wheel]
-packages = ["mimi"]
+packages = ["pyrecall"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

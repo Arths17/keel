@@ -7,7 +7,7 @@ import sqlite3
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from mimi.live import LiveLearner
+from pyrecall.live import LiveLearner
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────

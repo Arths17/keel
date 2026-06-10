@@ -45,8 +45,8 @@ _LORA_TARGETS: dict[str, list[str]] = {
 }
 
 
-class MimiError(Exception):
-    """Raised for user-facing operational errors in mimi."""
+class PyrecallError(Exception):
+    """Raised for user-facing operational errors in pyrecall."""
 
 
 class Model:
@@ -93,15 +93,15 @@ class Model:
             lora_alpha: LoRA scaling factor (usually 2× rank).
             lora_dropout: Dropout applied to LoRA layers.
             device: ``"cuda"``, ``"cpu"``, or ``"mps"``. Auto-detected when None.
-            snapshot_dir: Override the default ``~/.mimi/snapshots/<model>`` path.
+            snapshot_dir: Override the default ``~/.pyrecall/snapshots/<model>`` path.
             forgetting_threshold: Score drop fraction that counts as forgetting (0–1).
             load_in_4bit: Load base model in 4-bit (QLoRA). Requires ``bitsandbytes``.
             load_in_8bit: Load base model in 8-bit. Requires ``bitsandbytes``.
         """
         if strategy not in ("lora", "qlora"):
-            raise MimiError(
+            raise PyrecallError(
                 f"Unknown strategy '{strategy}'. "
-                "mimi supports strategy='lora' or strategy='qlora'. "
+                "pyrecall supports strategy='lora' or strategy='qlora'. "
                 "Example: Model('meta-llama/Llama-3.2-1B', strategy='qlora', load_in_4bit=True)"
             )
 
@@ -122,7 +122,7 @@ class Model:
         bnb_config = None
         if strategy == "qlora" or load_in_4bit or load_in_8bit:
             if load_in_4bit and load_in_8bit:
-                raise MimiError("Cannot use load_in_4bit and load_in_8bit together.")
+                raise PyrecallError("Cannot use load_in_4bit and load_in_8bit together.")
             bnb_config = BitsAndBytesConfig(
                 load_in_4bit=load_in_4bit,
                 load_in_8bit=load_in_8bit,
@@ -183,7 +183,7 @@ class Model:
             name: A human-readable label for this snapshot, e.g. ``"before_v1"``.
 
         Returns:
-            The :class:`~mimi.snapshot.SkillSnapshot` that was saved.
+            The :class:`~pyrecall.snapshot.SkillSnapshot` that was saved.
         """
         console.print(f"[info]Taking snapshot '{name}'…[/info]")
 
@@ -217,7 +217,7 @@ class Model:
 
             {"text": "### Human: What is 2+2?\\n\\n### Assistant: 4"}
 
-        Checkpoints are saved every 20% of an epoch to ``~/.mimi/runs/<model>/``.
+        Checkpoints are saved every 20% of an epoch to ``~/.pyrecall/runs/<model>/``.
         Pass ``resume=True`` to continue from the latest checkpoint if a previous
         run was interrupted.
 
@@ -231,7 +231,7 @@ class Model:
         """
         data_file = Path(data_path)
         if not data_file.exists():
-            raise MimiError(
+            raise PyrecallError(
                 f"Training data not found at '{data_path}'. "
                 "Provide a JSONL, CSV, or Parquet file where each row has a 'text' column."
             )
@@ -241,7 +241,7 @@ class Model:
         _FORMAT_MAP = {".jsonl": "json", ".json": "json", ".csv": "csv", ".parquet": "parquet"}
         fmt = _FORMAT_MAP.get(data_file.suffix.lower())
         if fmt is None:
-            raise MimiError(
+            raise PyrecallError(
                 f"Unsupported file format '{data_file.suffix}'. "
                 "Use .jsonl, .csv, or .parquet."
             )
@@ -261,7 +261,7 @@ class Model:
 
         tokenized = dataset.map(_tokenize, batched=True, remove_columns=dataset.column_names)
 
-        run_dir = Path.home() / ".mimi" / "runs" / safe_model_name(self.model_name)
+        run_dir = Path.home() / ".pyrecall" / "runs" / safe_model_name(self.model_name)
 
         # Save a checkpoint roughly every 20% of an epoch so interrupted runs
         # can be resumed without restarting from scratch.
@@ -314,11 +314,11 @@ class Model:
         Must be called after at least one :meth:`snapshot` call.
 
         Returns:
-            A :class:`~mimi.detector.ForgettingReport` with per-category scores
+            A :class:`~pyrecall.detector.ForgettingReport` with per-category scores
             printed to the terminal automatically.
         """
         if not self._baseline_snapshot_name:
-            raise MimiError(
+            raise PyrecallError(
                 "No baseline snapshot found.\n"
                 "Call model.snapshot(name='before_v1') before fine-tuning, "
                 "then call model.check() afterwards."
@@ -354,7 +354,7 @@ class Model:
         snap = self.rollback_manager.load_snapshot(to)
 
         if snap.adapter_path is None or not snap.adapter_path.exists():
-            raise MimiError(
+            raise PyrecallError(
                 f"Snapshot '{to}' has no saved adapter weights at "
                 f"'{snap.adapter_path}'. "
                 "Only snapshots taken with model.snapshot() can be used for rollback."
@@ -420,7 +420,7 @@ class Model:
         from pydantic import BaseModel as _Base
 
         app = FastAPI(
-            title="mimi",
+            title="pyrecall",
             description=f"Serving {self.model_name}",
             version="0.1.0",
         )

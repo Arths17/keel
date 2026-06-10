@@ -6,8 +6,8 @@ from datetime import datetime
 
 import pytest
 
-from mimi.detector import CategoryComparison, ForgettingDetector, ForgettingReport
-from mimi.snapshot import SkillScore, SkillSnapshot
+from pyrecall.detector import CategoryComparison, ForgettingDetector, ForgettingReport
+from pyrecall.snapshot import SkillScore, SkillSnapshot
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────

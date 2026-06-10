@@ -1,11 +1,11 @@
 """
-mimi — Keep your models balanced.
+pyrecall — Keep your models balanced.
 
 Continuous fine-tuning with automatic forgetting detection and skill rollback.
 
 Quick start::
 
-    from mimi import Model
+    from pyrecall import Model
 
     model = Model("meta-llama/Llama-3.2-1B", strategy="lora")
     model.snapshot(name="before_v1")
@@ -17,13 +17,13 @@ Quick start::
 
 from .detector import ForgettingDetector, ForgettingReport, CategoryComparison
 from .live import LiveLearner
-from .model import Model, MimiError
+from .model import Model, PyrecallError
 from .rollback import RollbackManager
 from .snapshot import SkillScore, SkillSnapshot
 
 __all__ = [
     "Model",
-    "MimiError",
+    "PyrecallError",
     "SkillSnapshot",
     "SkillScore",
     "ForgettingDetector",
@@ -33,4 +33,4 @@ __all__ = [
     "LiveLearner",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.0.1"
