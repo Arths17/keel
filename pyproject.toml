@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pyrecall"
-version = "0.1.1"
+version = "0.1.2"
 description = "Keep your models balanced. Continuous fine-tuning with automatic forgetting detection and skill rollback."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -65,3 +65,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+addopts = "-m 'not slow'"
+markers = [
+    "slow: end-to-end integration tests that load real models (run with -m slow)",
+]

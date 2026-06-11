@@ -292,7 +292,7 @@ class Model:
             save_steps=save_steps,
             save_total_limit=2,
             report_to="none",
-            fp16=(self.device != "cpu"),
+            fp16=(self.device == "cuda"),
             dataloader_drop_last=False,
         )
 
