@@ -86,7 +86,8 @@ When you call `model.snapshot("name")`, pyrecall:
 4. Saves scores + LoRA adapter weights to `~/.pyrecall/snapshots/`
 5. Optionally encrypts snapshot metadata when `privacy=True`.
 
-To use privacy mode, set `ENCRYPT_KEY` in your `.env` file to a Fernet key.
+To use privacy mode, generate a key with `cryptography.fernet.Fernet.generate_key()`
+and set `ENCRYPT_KEY` in your `.env` file.
 
 All local. No API calls. Works offline.
 
