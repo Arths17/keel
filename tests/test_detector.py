@@ -180,3 +180,77 @@ class TestForgettingDetector:
         report = detector.compare(before, after)
         new_skill_comp = next(c for c in report.comparisons if c.category == "new_skill")
         assert new_skill_comp.score_after == 0.0
+
+
+class TestForgettingReportSerialization:
+    def test_to_dict_returns_dict(self) -> None:
+        detector = ForgettingDetector(threshold=0.10)
+        before = _make_snapshot("before", {"coding": 0.8, "reasoning": 0.75})
+        after = _make_snapshot("after", {"coding": 0.65, "reasoning": 0.76})
+        report = detector.compare(before, after)
+        result = report.to_dict()
+        assert isinstance(result, dict)
+
+    def test_to_dict_top_level_keys(self) -> None:
+        detector = ForgettingDetector(threshold=0.10)
+        before = _make_snapshot("b", {"coding": 0.8})
+        after = _make_snapshot("a", {"coding": 0.79})
+        report = detector.compare(before, after)
+        d = report.to_dict()
+        for key in ("healthy", "snapshot_before", "snapshot_after", "threshold", "degraded_skills", "comparisons"):
+            assert key in d
+
+    def test_to_dict_healthy_reflects_report(self) -> None:
+        detector = ForgettingDetector(threshold=0.10)
+        before = _make_snapshot("b", {"coding": 0.9})
+        after = _make_snapshot("a", {"coding": 0.5})
+        report = detector.compare(before, after)
+        assert report.to_dict()["healthy"] is False
+
+    def test_to_dict_degraded_skills_populated(self) -> None:
+        detector = ForgettingDetector(threshold=0.10)
+        before = _make_snapshot("b", {"coding": 0.9, "safety": 0.85})
+        after = _make_snapshot("a", {"coding": 0.5, "safety": 0.84})
+        report = detector.compare(before, after)
+        d = report.to_dict()
+        assert "coding" in d["degraded_skills"]
+        assert "safety" not in d["degraded_skills"]
+
+    def test_to_dict_comparison_fields(self) -> None:
+        detector = ForgettingDetector(threshold=0.10)
+        before = _make_snapshot("b", {"coding": 0.8})
+        after = _make_snapshot("a", {"coding": 0.7})
+        report = detector.compare(before, after)
+        comp = report.to_dict()["comparisons"][0]
+        assert comp["category"] == "coding"
+        assert comp["score_before"] == pytest.approx(0.8, abs=0.001)
+        assert comp["score_after"] == pytest.approx(0.7, abs=0.001)
+        assert comp["delta"] == pytest.approx(-0.1, abs=0.001)
+        assert "pct_change" in comp
+        assert comp["status"] in ("OK", "FORGOTTEN")
+
+    def test_to_dict_status_forgotten_when_degraded(self) -> None:
+        detector = ForgettingDetector(threshold=0.10)
+        before = _make_snapshot("b", {"coding": 0.9})
+        after = _make_snapshot("a", {"coding": 0.5})
+        report = detector.compare(before, after)
+        comp = report.to_dict()["comparisons"][0]
+        assert comp["status"] == "FORGOTTEN"
+
+    def test_to_dict_status_ok_when_healthy(self) -> None:
+        detector = ForgettingDetector(threshold=0.10)
+        before = _make_snapshot("b", {"coding": 0.8})
+        after = _make_snapshot("a", {"coding": 0.79})
+        report = detector.compare(before, after)
+        comp = report.to_dict()["comparisons"][0]
+        assert comp["status"] == "OK"
+
+    def test_to_json_is_valid_json(self) -> None:
+        import json
+        detector = ForgettingDetector(threshold=0.10)
+        before = _make_snapshot("b", {"coding": 0.8})
+        after = _make_snapshot("a", {"coding": 0.75})
+        report = detector.compare(before, after)
+        parsed = json.loads(report.to_json())
+        assert parsed["snapshot_before"] == "b"
+        assert parsed["snapshot_after"] == "a"

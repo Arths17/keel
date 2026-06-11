@@ -340,6 +340,10 @@ def check(
         Optional[float],
         typer.Option("--threshold", help="Override the forgetting threshold (0–1). Defaults to the value set in pyrecall init."),
     ] = None,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Output results as JSON instead of a rich table. Useful for CI pipelines and dashboards."),
+    ] = False,
 ) -> None:
     """
     Compare two snapshots to detect forgotten skills.
@@ -347,6 +351,10 @@ def check(
     When called without arguments, compares the two most recently created
     snapshots.  Pass --before and --after to compare specific snapshots.
     Exits with code 2 when forgetting is detected.
+
+    Use --json to get machine-readable output:
+
+        pyrecall check --json | jq '.degraded_skills'
     """
     config = _read_config()
     mgr = _build_rollback_manager(config)
@@ -390,7 +398,11 @@ def check(
         raise typer.Exit(1)
     detector = ForgettingDetector(threshold=effective_threshold)
     report = detector.compare(snap_before, snap_after)
-    report.print()
+
+    if json_output:
+        typer.echo(report.to_json())
+    else:
+        report.print()
 
     if report.degraded_skills:
         raise typer.Exit(2)  # Non-zero exit so CI pipelines can catch forgetting.

@@ -538,6 +538,114 @@ class TestCheck:
         assert result.exit_code == 0
 
 
+# ── check --json ──────────────────────────────────────────────────────────────
+
+
+class TestCheckJson:
+    def test_json_flag_outputs_valid_json(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path)
+        snap_a = _make_snapshot("before", {"coding": 0.8})
+        snap_b = _make_snapshot("after", {"coding": 0.79})
+        mgr = _make_mock_manager(snapshots=[snap_a, snap_b])
+
+        with patch("pyrecall.rollback.RollbackManager", return_value=mgr):
+            result = runner.invoke(app, ["check", "--json"])
+
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert isinstance(parsed, dict)
+
+    def test_json_output_has_expected_keys(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path)
+        snap_a = _make_snapshot("before", {"coding": 0.8})
+        snap_b = _make_snapshot("after", {"coding": 0.79})
+        mgr = _make_mock_manager(snapshots=[snap_a, snap_b])
+
+        with patch("pyrecall.rollback.RollbackManager", return_value=mgr):
+            result = runner.invoke(app, ["check", "--json"])
+
+        data = json.loads(result.output)
+        assert "healthy" in data
+        assert "snapshot_before" in data
+        assert "snapshot_after" in data
+        assert "degraded_skills" in data
+        assert "comparisons" in data
+        assert "threshold" in data
+
+    def test_json_healthy_true_when_no_forgetting(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path)
+        snap_a = _make_snapshot("before", {"coding": 0.8})
+        snap_b = _make_snapshot("after", {"coding": 0.81})
+        mgr = _make_mock_manager(snapshots=[snap_a, snap_b])
+
+        with patch("pyrecall.rollback.RollbackManager", return_value=mgr):
+            result = runner.invoke(app, ["check", "--json"])
+
+        data = json.loads(result.output)
+        assert data["healthy"] is True
+        assert data["degraded_skills"] == []
+
+    def test_json_healthy_false_when_forgetting(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path)
+        snap_a = _make_snapshot("before", {"coding": 0.9})
+        snap_b = _make_snapshot("after", {"coding": 0.5})
+        mgr = _make_mock_manager(snapshots=[snap_a, snap_b])
+
+        with patch("pyrecall.rollback.RollbackManager", return_value=mgr):
+            result = runner.invoke(app, ["check", "--json"])
+
+        assert result.exit_code == 2
+        data = json.loads(result.output)
+        assert data["healthy"] is False
+        assert "coding" in data["degraded_skills"]
+
+    def test_json_comparisons_contain_scores(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path)
+        snap_a = _make_snapshot("before", {"coding": 0.8})
+        snap_b = _make_snapshot("after", {"coding": 0.75})
+        mgr = _make_mock_manager(snapshots=[snap_a, snap_b])
+
+        with patch("pyrecall.rollback.RollbackManager", return_value=mgr):
+            result = runner.invoke(app, ["check", "--json"])
+
+        data = json.loads(result.output)
+        comp = data["comparisons"][0]
+        assert "score_before" in comp
+        assert "score_after" in comp
+        assert "delta" in comp
+        assert "pct_change" in comp
+        assert "status" in comp
+
+    def test_json_exit_code_still_two_on_forgetting(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path)
+        snap_a = _make_snapshot("before", {"safety": 0.9})
+        snap_b = _make_snapshot("after", {"safety": 0.5})
+        mgr = _make_mock_manager(snapshots=[snap_a, snap_b])
+
+        with patch("pyrecall.rollback.RollbackManager", return_value=mgr):
+            result = runner.invoke(app, ["check", "--json"])
+
+        assert result.exit_code == 2
+
+
 # ── rollback ──────────────────────────────────────────────────────────────────
 
 

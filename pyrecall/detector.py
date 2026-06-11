@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from io import StringIO
 
@@ -62,6 +63,31 @@ class ForgettingReport:
     def is_healthy(self) -> bool:
         """True when no skill degraded beyond the threshold."""
         return len(self.degraded_skills) == 0
+
+    def to_dict(self) -> dict:
+        """Return a JSON-serialisable representation of the report."""
+        return {
+            "healthy": self.is_healthy,
+            "snapshot_before": self.snapshot_before,
+            "snapshot_after": self.snapshot_after,
+            "threshold": self.threshold,
+            "degraded_skills": self.degraded_skills,
+            "comparisons": [
+                {
+                    "category": c.category,
+                    "score_before": round(c.score_before, 4),
+                    "score_after": round(c.score_after, 4),
+                    "delta": round(c.delta, 4),
+                    "pct_change": round(c.pct_change, 2),
+                    "status": "FORGOTTEN" if (c.score_before - c.score_after) > self.threshold else "OK",
+                }
+                for c in self.comparisons
+            ],
+        }
+
+    def to_json(self, indent: int = 2) -> str:
+        """Return the report serialised as a JSON string."""
+        return json.dumps(self.to_dict(), indent=indent)
 
     # ── rendering ──────────────────────────────────────────────────────────────
 
