@@ -80,7 +80,7 @@ That's it. The model is back to where it was before the dog forgot how to sit.
 
 When you call `model.snapshot("name")`, pyrecall:
 
-1. Runs **20 benchmark prompts** across five skill categories
+1. Runs **40 benchmark prompts** across five skill categories
 2. Embeds each response using the model's own hidden states
 3. Scores each response against a reference answer via cosine similarity
 4. Saves scores + LoRA adapter weights to `~/.pyrecall/snapshots/`
@@ -97,7 +97,7 @@ All local. No API calls. Works offline.
 
 ### 2. Forgetting detection
 
-`model.check()` re-runs the same 20 benchmarks on the current model and diffs the scores:
+`model.check()` re-runs the same 40 benchmarks on the current model and diffs the scores:
 
 ```text
 ┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┓
