@@ -107,6 +107,17 @@ def _build_rollback_manager(config: dict):
     return RollbackManager(model_name=config["model_name"])
 
 
+def _build_trackers(log_wandb: bool, log_mlflow: bool):
+    trackers = []
+    if log_wandb:
+        from pyrecall.trackers import WandbTracker
+        trackers.append(WandbTracker())
+    if log_mlflow:
+        from pyrecall.trackers import MLflowTracker
+        trackers.append(MLflowTracker())
+    return trackers if trackers else None
+
+
 # ── commands ───────────────────────────────────────────────────────────────────
 
 
@@ -257,6 +268,14 @@ def learn(
         bool,
         typer.Option("--no-update-baseline", help="Do not update baseline_snapshot in .pyrecall.json after snapshotting"),
     ] = False,
+    log_wandb: Annotated[
+        bool,
+        typer.Option("--log-wandb", help="Log snapshot scores to Weights & Biases (requires pip install pyrecall[wandb])"),
+    ] = False,
+    log_mlflow: Annotated[
+        bool,
+        typer.Option("--log-mlflow", help="Log snapshot scores to MLflow (requires pip install pyrecall[mlflow])"),
+    ] = False,
 ) -> None:
     """
     Fine-tune the model on a local dataset.
@@ -296,8 +315,10 @@ def learn(
         replay_mix_ratio=config.get("replay_mix_ratio", 0.3),
     )
 
+    tracker = _build_trackers(log_wandb, log_mlflow)
+
     if snapshot_before:
-        model_obj.snapshot(name=snapshot_before)
+        model_obj.snapshot(name=snapshot_before, tracker=tracker)
         if not no_update_baseline:
             config["baseline_snapshot"] = snapshot_before
             _write_config(config)
@@ -319,7 +340,7 @@ def learn(
         raise typer.Exit(1) from exc
 
     if snapshot_after:
-        model_obj.snapshot(name=snapshot_after)
+        model_obj.snapshot(name=snapshot_after, tracker=tracker)
         if not no_update_baseline:
             config["baseline_snapshot"] = snapshot_after
             _write_config(config)
@@ -334,6 +355,14 @@ def snapshot(
     no_update_baseline: Annotated[
         bool,
         typer.Option("--no-update-baseline", help="Do not update baseline_snapshot in .pyrecall.json"),
+    ] = False,
+    log_wandb: Annotated[
+        bool,
+        typer.Option("--log-wandb", help="Log scores to Weights & Biases (requires pip install pyrecall[wandb])"),
+    ] = False,
+    log_mlflow: Annotated[
+        bool,
+        typer.Option("--log-mlflow", help="Log scores to MLflow (requires pip install pyrecall[mlflow])"),
     ] = False,
 ) -> None:
     """
@@ -363,7 +392,8 @@ def snapshot(
         replay_buffer_size=config.get("replay_buffer_size", 500),
         replay_mix_ratio=config.get("replay_mix_ratio", 0.3),
     )
-    model_obj.snapshot(name=name)
+    tracker = _build_trackers(log_wandb, log_mlflow)
+    model_obj.snapshot(name=name, tracker=tracker)
 
     if not no_update_baseline:
         config["baseline_snapshot"] = name

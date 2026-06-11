@@ -266,7 +266,7 @@ class TestLearn:
         with patch("pyrecall.model.Model", return_value=mock_model):
             runner.invoke(app, ["learn", str(data), "--snapshot-after", "post_train"])
 
-        mock_model.snapshot.assert_called_once_with(name="post_train")
+        mock_model.snapshot.assert_called_once_with(name="post_train", tracker=None)
 
     def test_snapshot_after_updates_baseline_in_config(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -466,7 +466,7 @@ class TestLearn:
             ])
 
         mock_model.learn.assert_called_once()
-        mock_model.snapshot.assert_called_once_with(name="after_v1")
+        mock_model.snapshot.assert_called_once_with(name="after_v1", tracker=None)
 
 
 # ── snapshot ──────────────────────────────────────────────────────────────────
@@ -492,7 +492,7 @@ class TestSnapshot:
         with patch("pyrecall.model.Model", return_value=mock_model):
             runner.invoke(app, ["snapshot", "v1"])
 
-        mock_model.snapshot.assert_called_once_with(name="v1")
+        mock_model.snapshot.assert_called_once_with(name="v1", tracker=None)
 
     def test_updates_baseline_snapshot_in_config(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -565,7 +565,7 @@ class TestSnapshot:
         with patch("pyrecall.model.Model", return_value=mock_model):
             runner.invoke(app, ["snapshot", "new_snap", "--no-update-baseline"])
 
-        mock_model.snapshot.assert_called_once_with(name="new_snap")
+        mock_model.snapshot.assert_called_once_with(name="new_snap", tracker=None)
 
     def test_default_updates_baseline(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path

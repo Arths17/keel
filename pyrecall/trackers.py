@@ -1,0 +1,118 @@
+"""Experiment tracker integrations for logging snapshot scores to W&B or MLflow."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from .snapshot import SkillSnapshot
+
+
+@runtime_checkable
+class SnapshotTracker(Protocol):
+    """Protocol that any tracker must satisfy."""
+
+    def log_snapshot(self, snapshot: "SkillSnapshot") -> None: ...
+
+
+class WandbTracker:
+    """
+    Log snapshot scores to Weights & Biases.
+
+    Requires ``wandb`` to be installed::
+
+        pip install pyrecall[wandb]
+
+    Each snapshot becomes a W&B run named after the snapshot.  Per-category
+    scores are logged as ``pyrecall/<category>`` metrics, plus
+    ``pyrecall/overall``.
+
+    Example::
+
+        from pyrecall import Model
+        from pyrecall.trackers import WandbTracker
+
+        tracker = WandbTracker(project="my-finetune")
+        model.snapshot("before_v1", tracker=tracker)
+    """
+
+    def __init__(self, project: str = "pyrecall", **wandb_init_kwargs) -> None:
+        self.project = project
+        self._init_kwargs = wandb_init_kwargs
+
+    def log_snapshot(self, snapshot: "SkillSnapshot") -> None:
+        try:
+            import wandb
+        except ImportError as exc:
+            raise ImportError(
+                "wandb is not installed. Install it with: pip install pyrecall[wandb]"
+            ) from exc
+
+        metrics: dict[str, float] = {
+            f"pyrecall/{cat}": score
+            for cat, score in snapshot.category_scores().items()
+        }
+        metrics["pyrecall/overall"] = snapshot.overall_score()
+
+        run = wandb.init(
+            project=self.project,
+            name=snapshot.name,
+            reinit=True,
+            tags=["pyrecall", snapshot.model_name],
+            **self._init_kwargs,
+        )
+        run.log(metrics)
+        run.finish()
+
+
+class MLflowTracker:
+    """
+    Log snapshot scores to MLflow.
+
+    Requires ``mlflow`` to be installed::
+
+        pip install pyrecall[mlflow]
+
+    Each snapshot becomes an MLflow run named after the snapshot under
+    the configured experiment.  Per-category scores are logged as
+    ``pyrecall.<category>`` metrics, plus ``pyrecall.overall``.
+
+    Example::
+
+        from pyrecall import Model
+        from pyrecall.trackers import MLflowTracker
+
+        tracker = MLflowTracker(experiment_name="my-finetune")
+        model.snapshot("before_v1", tracker=tracker)
+    """
+
+    def __init__(
+        self,
+        experiment_name: str = "pyrecall",
+        tracking_uri: str | None = None,
+    ) -> None:
+        self.experiment_name = experiment_name
+        self.tracking_uri = tracking_uri
+
+    def log_snapshot(self, snapshot: "SkillSnapshot") -> None:
+        try:
+            import mlflow
+        except ImportError as exc:
+            raise ImportError(
+                "mlflow is not installed. Install it with: pip install pyrecall[mlflow]"
+            ) from exc
+
+        if self.tracking_uri:
+            mlflow.set_tracking_uri(self.tracking_uri)
+
+        mlflow.set_experiment(self.experiment_name)
+
+        with mlflow.start_run(run_name=snapshot.name):
+            metrics: dict[str, float] = {
+                f"pyrecall.{cat}": score
+                for cat, score in snapshot.category_scores().items()
+            }
+            metrics["pyrecall.overall"] = snapshot.overall_score()
+            mlflow.log_metrics(metrics)
+            mlflow.set_tag("pyrecall.snapshot", snapshot.name)
+            mlflow.set_tag("pyrecall.model", snapshot.model_name)

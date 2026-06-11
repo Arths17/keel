@@ -287,6 +287,59 @@ pyrecall live clear --all --yes
 
 ---
 
+## Experiment tracker integrations
+
+Log snapshot scores to Weights & Biases or MLflow so every training run's capability profile shows up alongside your loss curves.
+
+### Weights & Biases
+
+```bash
+pip install pyrecall[wandb]
+```
+
+```python
+from pyrecall import Model
+from pyrecall.trackers import WandbTracker
+
+tracker = WandbTracker(project="my-finetune")
+model.snapshot("before_v1", tracker=tracker)   # scores logged to W&B automatically
+```
+
+Each snapshot becomes a W&B run named after the snapshot.  Metrics are logged as `pyrecall/<category>` and `pyrecall/overall`.
+
+### MLflow
+
+```bash
+pip install pyrecall[mlflow]
+```
+
+```python
+from pyrecall import Model
+from pyrecall.trackers import MLflowTracker
+
+tracker = MLflowTracker(experiment_name="my-finetune", tracking_uri="http://localhost:5000")
+model.snapshot("before_v1", tracker=tracker)
+```
+
+Metrics are logged as `pyrecall.<category>` and `pyrecall.overall`.  The snapshot name and model name are stored as run tags.
+
+### CLI flags
+
+Pass `--log-wandb` or `--log-mlflow` to any command that takes a snapshot:
+
+```bash
+pyrecall snapshot before_v1 --log-wandb
+pyrecall learn train.jsonl --snapshot-after after_v1 --log-mlflow
+```
+
+Both flags can be combined to log to both trackers simultaneously.
+
+### Custom trackers
+
+Any object with a `log_snapshot(snapshot: SkillSnapshot) -> None` method satisfies the `SnapshotTracker` protocol and can be passed as `tracker=`.
+
+---
+
 ## Supported models
 
 Any causal LM on HuggingFace Hub. pyrecall auto-detects LoRA target modules for:

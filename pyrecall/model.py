@@ -23,6 +23,7 @@ from .detector import ForgettingDetector, ForgettingReport
 from .replay import ReplayBuffer
 from .rollback import RollbackManager
 from .snapshot import SkillScore, SkillSnapshot
+from .trackers import SnapshotTracker
 from .utils import compute_embeddings, console, cosine_similarity, get_logger, safe_model_name
 
 logger = get_logger(__name__)
@@ -201,16 +202,23 @@ class Model:
 
     # ── public API ─────────────────────────────────────────────────────────────
 
-    def snapshot(self, name: str) -> SkillSnapshot:
+    def snapshot(
+        self,
+        name: str,
+        tracker: "SnapshotTracker | list[SnapshotTracker] | None" = None,
+    ) -> SkillSnapshot:
         """
         Benchmark the model and save a named capability snapshot.
 
-        Runs all 20 default benchmarks, scores each response, saves the scores
+        Runs all 64 default benchmarks, scores each response, saves the scores
         *and* the current LoRA adapter weights to disk so the model can be
         rolled back to this exact state later.
 
         Args:
             name: A human-readable label for this snapshot, e.g. ``"before_v1"``.
+            tracker: An optional :class:`~pyrecall.trackers.SnapshotTracker` (or list
+                of trackers) to log scores to an experiment tracker such as W&B or
+                MLflow immediately after the snapshot is saved.
 
         Returns:
             The :class:`~pyrecall.snapshot.SkillSnapshot` that was saved.
@@ -227,6 +235,12 @@ class Model:
             f"[success]✓ Snapshot '{name}' saved. "
             f"Overall score: {snap.overall_score():.3f}[/success]"
         )
+
+        if tracker is not None:
+            trackers = tracker if isinstance(tracker, list) else [tracker]
+            for t in trackers:
+                t.log_snapshot(snap)
+
         return snap
 
     def learn(
