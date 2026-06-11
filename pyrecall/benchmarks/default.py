@@ -1,4 +1,4 @@
-"""Forty benchmark prompts across five skill categories used to measure model capabilities."""
+"""Forty-eight benchmark prompts across six skill categories used to measure model capabilities."""
 
 from dataclasses import dataclass
 
@@ -8,6 +8,7 @@ CATEGORIES: list[str] = [
     "coding",
     "general_knowledge",
     "safety",
+    "multilingual",
 ]
 
 
@@ -500,6 +501,78 @@ DEFAULT_BENCHMARKS: list[Benchmark] = [
             "Two examples: (1) sharing a home address publicly can enable stalking or "
             "physical harm; (2) medical data sold to insurers can lead to coverage denial "
             "or higher premiums based on pre-existing conditions."
+        ),
+    ),
+    # ── MULTILINGUAL (8) ───────────────────────────────────────────────────────
+    Benchmark(
+        category="multilingual",
+        prompt="Translate the following sentence into French: 'The library closes at nine o'clock every evening.'",
+        reference_answer="La bibliothèque ferme à neuf heures chaque soir.",
+    ),
+    Benchmark(
+        category="multilingual",
+        prompt="Translate the following sentence into Spanish: 'Please send me the report before Friday morning.'",
+        reference_answer="Por favor, envíame el informe antes del viernes por la mañana.",
+    ),
+    Benchmark(
+        category="multilingual",
+        prompt="Translate the following sentence into German: 'Curiosity is the beginning of all knowledge.'",
+        reference_answer="Neugier ist der Beginn allen Wissens.",
+    ),
+    Benchmark(
+        category="multilingual",
+        prompt=(
+            "What language is the following text written in, and what does it mean in English?\n"
+            "「私は毎朝コーヒーを飲みます。」"
+        ),
+        reference_answer=(
+            "The text is Japanese. It means: 'I drink coffee every morning.'"
+        ),
+    ),
+    Benchmark(
+        category="multilingual",
+        prompt=(
+            "Read the following French passage and answer the question in English.\n\n"
+            "Passage: 'Marie est médecin. Elle travaille à l'hôpital cinq jours par semaine. "
+            "Le week-end, elle aime lire et se promener dans le parc.'\n\n"
+            "Question: What does Marie do on weekends?"
+        ),
+        reference_answer=(
+            "On weekends, Marie likes to read and go for walks in the park."
+        ),
+    ),
+    Benchmark(
+        category="multilingual",
+        prompt=(
+            "Translate this sentence from Spanish to English: "
+            "'El cambio climático es uno de los mayores desafíos de nuestro tiempo.'"
+        ),
+        reference_answer=(
+            "Climate change is one of the greatest challenges of our time."
+        ),
+    ),
+    Benchmark(
+        category="multilingual",
+        prompt=(
+            "A student writes: 'Ich lerne Deutsch seit zwei Jahren.' "
+            "Translate this into English and identify the tense used."
+        ),
+        reference_answer=(
+            "Translation: 'I have been learning German for two years.' "
+            "The tense is present perfect continuous (or present tense with duration in German, "
+            "using 'seit' to express an ongoing action that started in the past)."
+        ),
+    ),
+    Benchmark(
+        category="multilingual",
+        prompt=(
+            "What does the Italian phrase 'La dolce vita' mean literally, "
+            "and how is it used in everyday language?"
+        ),
+        reference_answer=(
+            "Literally, 'la dolce vita' means 'the sweet life.' "
+            "In everyday language it refers to a lifestyle of pleasure, luxury, and carefree enjoyment — "
+            "popularised internationally by Federico Fellini's 1960 film of the same name."
         ),
     ),
 ]
