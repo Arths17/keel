@@ -99,7 +99,7 @@ All local. No API calls. Works offline.
 
 `model.check()` re-runs the same 20 benchmarks on the current model and diffs the scores:
 
-```
+```text
 ┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┓
 ┃ Skill                ┃ Before  ┃  After  ┃ Δ Score               ┃  Status   ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━┩
@@ -125,6 +125,22 @@ model.rollback(to="before_fine_tune")
 # model is now exactly what it was when you took that snapshot
 ```
 
+### 4. Replay buffer
+
+Every time you call `model.learn()`, pyrecall keeps a reservoir-sampled buffer of past training examples (up to `replay_buffer_size`, default 500). On the next training run it automatically mixes a fraction of those old examples back into the batch — so the model sees a blend of new and old data on every run.
+
+This directly reduces catastrophic forgetting without any extra steps on your part.
+
+```python
+model = Model(
+    "meta-llama/Llama-3.2-1B",
+    replay_buffer_size=500,   # how many past examples to store
+    replay_mix_ratio=0.3,     # 30% of each training batch comes from the replay buffer
+)
+```
+
+The buffer is persisted to `~/.pyrecall/replay/<model>/buffer.jsonl` and survives process restarts. Set `replay_buffer_size=0` to disable it entirely.
+
 ---
 
 ## CLI
@@ -136,11 +152,17 @@ pyrecall init --model meta-llama/Llama-3.2-1B
 # Take a snapshot (runs benchmarks + saves adapter)
 pyrecall snapshot before_v1
 
+# Fine-tune the model on a local dataset
+pyrecall learn train.jsonl --epochs 5
+
+# Fine-tune and immediately snapshot the result
+pyrecall learn train.jsonl --epochs 5 --snapshot-after after_v1
+
 # Check for forgetting (compares the last two snapshots)
 pyrecall check
 
 # Or compare specific named snapshots
-pyrecall check --before before_v1 --after after_fine_tune
+pyrecall check --before before_v1 --after after_v1
 
 # Rollback to a previous snapshot
 pyrecall rollback before_v1
@@ -150,6 +172,27 @@ pyrecall status
 ```
 
 `pyrecall check` exits with **code 2** when forgetting is detected — drop it straight into your CI pipeline as a training gate.
+
+### learn flags
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--epochs` / `-e` | `3` | Number of full passes over the training data |
+| `--batch-size` | from config | Override the batch size set at `init` |
+| `--learning-rate` | from config | Override the learning rate set at `init` |
+| `--max-length` | from config | Override the tokenisation truncation length |
+| `--resume` | `false` | Resume from the latest checkpoint if a previous run was interrupted |
+| `--snapshot-after` | — | Take a named snapshot immediately after training completes |
+
+### A full training workflow
+
+```bash
+pyrecall init --model meta-llama/Llama-3.2-1B
+pyrecall snapshot before_v1
+pyrecall learn customer_service.jsonl --epochs 3 --snapshot-after after_v1
+pyrecall check --before before_v1 --after after_v1
+# exit code 0 → ship it   exit code 2 → pyrecall rollback before_v1
+```
 
 ---
 
@@ -217,22 +260,27 @@ Model(
     batch_size=4,
     max_length=512,
     device=None,               # auto-detects cuda → mps → cpu
-    forgetting_threshold=0.10  # flag if any skill drops > 10%
+    forgetting_threshold=0.10, # flag if any skill drops > 10%
+    replay_buffer_size=500,    # past examples stored for replay (0 = disabled)
+    replay_mix_ratio=0.3,      # fraction of each batch filled with replayed examples
 )
 ```
 
 ---
 
-## Where snapshots live
+## Where data lives
 
-```
-~/.pyrecall/snapshots/<model-name>/
-├── before_v1/
-│   ├── snapshot.json     ← benchmark scores per category
-│   └── adapter/          ← LoRA adapter weights (only file needed for rollback)
-└── after_fine_tune/
-    ├── snapshot.json
-    └── adapter/
+```text
+~/.pyrecall/
+├── snapshots/<model-name>/
+│   ├── before_v1/
+│   │   ├── snapshot.json     ← benchmark scores per category
+│   │   └── adapter/          ← LoRA adapter weights
+│   └── after_v1/
+│       ├── snapshot.json
+│       └── adapter/
+└── replay/<model-name>/
+    └── buffer.jsonl          ← reservoir-sampled past training examples
 ```
 
 ---
