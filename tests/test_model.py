@@ -404,6 +404,54 @@ class TestQLoRA:
                     snapshot_dir=tmp_snapshot_dir,
                 )
 
+    def test_qlora_strategy_alone_enables_4bit(self, tmp_snapshot_dir: Path) -> None:
+        """strategy='qlora' with no explicit bit flags must default to load_in_4bit=True."""
+        mock_tok = _make_mock_tokenizer()
+        mock_base = _make_mock_base_model()
+        mock_peft = _make_mock_peft_model()
+
+        with (
+            patch("pyrecall.model.AutoTokenizer.from_pretrained", return_value=mock_tok),
+            patch("pyrecall.model.AutoModelForCausalLM.from_pretrained", return_value=mock_base),
+            patch("pyrecall.model.get_peft_model", return_value=mock_peft),
+            patch("pyrecall.model.prepare_model_for_kbit_training", return_value=mock_base),
+            patch("pyrecall.model.BitsAndBytesConfig") as mock_bnb,
+        ):
+            from pyrecall.model import Model
+
+            Model("test/model", strategy="qlora", snapshot_dir=tmp_snapshot_dir)
+
+        mock_bnb.assert_called_once()
+        call_kwargs = mock_bnb.call_args[1]
+        assert call_kwargs["load_in_4bit"] is True
+        assert call_kwargs["load_in_8bit"] is False
+
+    def test_qlora_strategy_with_8bit_uses_8bit(self, tmp_snapshot_dir: Path) -> None:
+        """strategy='qlora' + load_in_8bit=True should not override to 4-bit."""
+        mock_tok = _make_mock_tokenizer()
+        mock_base = _make_mock_base_model()
+        mock_peft = _make_mock_peft_model()
+
+        with (
+            patch("pyrecall.model.AutoTokenizer.from_pretrained", return_value=mock_tok),
+            patch("pyrecall.model.AutoModelForCausalLM.from_pretrained", return_value=mock_base),
+            patch("pyrecall.model.get_peft_model", return_value=mock_peft),
+            patch("pyrecall.model.prepare_model_for_kbit_training", return_value=mock_base),
+            patch("pyrecall.model.BitsAndBytesConfig") as mock_bnb,
+        ):
+            from pyrecall.model import Model
+
+            Model(
+                "test/model",
+                strategy="qlora",
+                load_in_8bit=True,
+                snapshot_dir=tmp_snapshot_dir,
+            )
+
+        call_kwargs = mock_bnb.call_args[1]
+        assert call_kwargs["load_in_4bit"] is False
+        assert call_kwargs["load_in_8bit"] is True
+
     def test_invalid_strategy_still_raises(self, tmp_snapshot_dir: Path) -> None:
         mock_tok = _make_mock_tokenizer()
         mock_base = _make_mock_base_model()

@@ -144,9 +144,13 @@ class Model:
             self.tokenizer.pad_token = self.tokenizer.eos_token
             self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
 
-        # QLoRA: quantize base weights, keep adapters in float16
+        # QLoRA: quantize base weights, keep adapters in float16.
+        # strategy="qlora" implies 4-bit unless the caller explicitly requested 8-bit.
+        if strategy == "qlora" and not load_in_4bit and not load_in_8bit:
+            load_in_4bit = True
+
         bnb_config = None
-        if strategy == "qlora" or load_in_4bit or load_in_8bit:
+        if load_in_4bit or load_in_8bit:
             if load_in_4bit and load_in_8bit:
                 raise PyrecallError("Cannot use load_in_4bit and load_in_8bit together.")
             bnb_config = BitsAndBytesConfig(
