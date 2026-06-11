@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from .encrypt import Encryptor
 @dataclass
 class SkillScore:
     """Score for a single benchmark item."""
@@ -49,8 +48,6 @@ class SkillSnapshot:
     created_at: datetime = field(default_factory=datetime.now)
     scores: list[SkillScore] = field(default_factory=list)
     adapter_path: Optional[Path] = None
-    def __post_init__(self):
-        self.encryptor = Encryptor()
     # ── aggregation ────────────────────────────────────────────────────────────
     def category_scores(self) -> dict[str, float]:
         """Return average score per category."""
@@ -80,65 +77,69 @@ class SkillSnapshot:
             }
             (directory / "snapshot.json").write_text(json.dumps(data, indent=2))
         else:
+            from .encrypt import Encryptor
+            encryptor = Encryptor()
             
             data = {
                 "encrypted": True,
-                "name": self.encryptor.encrypt(self.name),
-                "model_name": self.encryptor.encrypt(self.model_name),
-                "created_at": self.encryptor.encrypt(self.created_at.isoformat()),
-                "scores": self.encryptor.encrypt(
+                "name": encryptor.encrypt(self.name),
+                "model_name": encryptor.encrypt(self.model_name),
+                "created_at": encryptor.encrypt(self.created_at.isoformat()),
+                "scores": encryptor.encrypt(
                         json.dumps([s.to_dict() for s in self.scores])
                     ),
                 "adapter_path": (
-                    self.encryptor.encrypt(str(self.adapter_path))
+                    encryptor.encrypt(str(self.adapter_path))
                     if self.adapter_path
                     else None
                 )
             }
 
     @classmethod
-    def load(cls, directory: Path, privacy=False) -> "SkillSnapshot":
-        encryptor = Encryptor()
-        """Load a snapshot from *directory*/snapshot.json."""
+    def load(cls, directory: Path) -> "SkillSnapshot":
         snapshot_file = directory / "snapshot.json"
+
         if not snapshot_file.exists():
             raise FileNotFoundError(
-                f"No snapshot.json found in '{directory}'. "
-                "Make sure the snapshot was created with model.snapshot()."
+                f"No snapshot.json found in '{directory}'."
             )
-        try:
-            data = json.loads(snapshot_file.read_text())
-        except json.JSONDecodeError as exc:
-            raise ValueError(
-                f"Snapshot file '{snapshot_file}' is corrupted (invalid JSON): {exc}"
-            ) from exc
-        if privacy:
+
+        data = json.loads(snapshot_file.read_text())
+
+        if data.get("encrypted", False):
+            from .encrypt import Encryptor
+            encryptor = Encryptor()
+
             return cls(
-                encrypted = True,
-                name= encryptor.decrypt(data["name"]),
+                name=encryptor.decrypt(data["name"]),
                 model_name=encryptor.decrypt(data["model_name"]),
                 created_at=datetime.fromisoformat(
                     encryptor.decrypt(data["created_at"])
                 ),
-                scores = [
+                scores=[
                     SkillScore.from_dict(s)
                     for s in json.loads(
                         encryptor.decrypt(data["scores"])
                     )
                 ],
-                adapter_path = (
+                adapter_path=(
                     Path(encryptor.decrypt(data["adapter_path"]))
                     if data["adapter_path"]
                     else None
                 ),
             )
-              
-        else:
-            return cls(
-                encrypted = False,
-                name = data["name"],
-                model_name=data["model_name"],
-                created_at=datetime.fromisoformat(data["created_at"]),
-                scores = [SkillScore.from_dict(s) for s in data["scores"]],
-                adapter_path = Path(data["adapter_path"]) if data["adapter_path"] else None,
-            )
+
+        return cls(
+            name=data["name"],
+            model_name=data["model_name"],
+            created_at=datetime.fromisoformat(data["created_at"]),
+            scores=[
+                SkillScore.from_dict(s)
+                for s in data["scores"]
+            ],
+            adapter_path=(
+                Path(data["adapter_path"])
+                if data["adapter_path"]
+                else None
+            ),
+        )
