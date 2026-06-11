@@ -57,7 +57,7 @@ def test_full_lifecycle(tmp_path: Path, training_jsonl: Path) -> None:
     before = model.snapshot("before")
 
     assert before.name == "before"
-    assert len(before.scores) == 48, "Expected 48 benchmark scores"
+    assert len(before.scores) == 64, "Expected 64 benchmark scores"
     assert all(0.0 <= s.score <= 1.0 for s in before.scores), "Scores must be in [0, 1]"
     assert before.adapter_path is not None and before.adapter_path.exists(), (
         "Adapter weights not saved"
@@ -111,7 +111,7 @@ def test_snapshot_persisted_to_disk(tmp_path: Path) -> None:
     data = json.loads(snap_json.read_text())
     assert data["name"] == "disk_check"
     assert data["model_name"] == "gpt2"
-    assert isinstance(data["scores"], list) and len(data["scores"]) == 48
+    assert isinstance(data["scores"], list) and len(data["scores"]) == 64
 
     assert adapter_dir.exists(), "adapter/ directory not saved"
     adapter_files = list(adapter_dir.iterdir())

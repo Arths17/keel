@@ -1,4 +1,4 @@
-"""Forty-eight benchmark prompts across six skill categories used to measure model capabilities."""
+"""Sixty-four benchmark prompts across eight skill categories used to measure model capabilities."""
 
 from dataclasses import dataclass
 
@@ -9,6 +9,8 @@ CATEGORIES: list[str] = [
     "general_knowledge",
     "safety",
     "multilingual",
+    "tool_use",
+    "advanced_math",
 ]
 
 
@@ -573,6 +575,177 @@ DEFAULT_BENCHMARKS: list[Benchmark] = [
             "Literally, 'la dolce vita' means 'the sweet life.' "
             "In everyday language it refers to a lifestyle of pleasure, luxury, and carefree enjoyment — "
             "popularised internationally by Federico Fellini's 1960 film of the same name."
+        ),
+    ),
+    # ── TOOL USE (8) ──────────────────────────────────────────────────────────────
+    Benchmark(
+        category="tool_use",
+        prompt=(
+            "You have access to a function `get_weather(city: str) -> dict` that returns "
+            "current weather data. A user asks: 'What's the weather like in Tokyo right now?' "
+            "Write the exact function call you would make."
+        ),
+        reference_answer='get_weather(city="Tokyo")',
+    ),
+    Benchmark(
+        category="tool_use",
+        prompt=(
+            "A function `search_products(query: str, max_price: float, in_stock: bool) -> list` "
+            "is available. A user says: 'Find me running shoes under $80 that are in stock.' "
+            "Write the function call."
+        ),
+        reference_answer='search_products(query="running shoes", max_price=80.0, in_stock=True)',
+    ),
+    Benchmark(
+        category="tool_use",
+        prompt=(
+            "You have two tools: `calculator(expression: str) -> float` and "
+            "`wikipedia_search(topic: str) -> str`. "
+            "A user asks: 'What is 347 multiplied by 29?' "
+            "Which tool should you use, and what call would you make?"
+        ),
+        reference_answer=(
+            "Use the calculator tool: calculator(expression=\"347 * 29\"). "
+            "This is a pure arithmetic question, so wikipedia_search is not appropriate."
+        ),
+    ),
+    Benchmark(
+        category="tool_use",
+        prompt=(
+            "A tool call returned the following result:\n"
+            "{'temperature_c': 22, 'condition': 'partly cloudy', 'humidity_pct': 58}\n"
+            "Summarise this for the user in one natural sentence."
+        ),
+        reference_answer=(
+            "It's currently 22°C and partly cloudy with a humidity of 58%."
+        ),
+    ),
+    Benchmark(
+        category="tool_use",
+        prompt=(
+            "Extract the following fields from this sentence and return them as a JSON object "
+            "with keys 'name', 'age', and 'city':\n"
+            "'Sarah Johnson, who is 34 years old, recently moved to Barcelona.'"
+        ),
+        reference_answer='{"name": "Sarah Johnson", "age": 34, "city": "Barcelona"}',
+    ),
+    Benchmark(
+        category="tool_use",
+        prompt=(
+            "You have a tool `send_email(to: str, subject: str, body: str) -> bool`. "
+            "A user says: 'Email alex@example.com to let him know the meeting is moved to 3pm.' "
+            "Write the function call."
+        ),
+        reference_answer=(
+            'send_email(to="alex@example.com", subject="Meeting time change", '
+            'body="Hi Alex, just a heads-up that the meeting has been moved to 3pm. Thanks.")'
+        ),
+    ),
+    Benchmark(
+        category="tool_use",
+        prompt=(
+            "A user asks: 'What is the capital of France?' "
+            "You have tools: `calculator(expression: str)`, `get_weather(city: str)`, "
+            "and `wikipedia_search(topic: str)`. "
+            "Should you call a tool? If yes, which one and with what arguments?"
+        ),
+        reference_answer=(
+            "Yes — use wikipedia_search(topic=\"capital of France\") to retrieve the answer. "
+            "Calculator is irrelevant and get_weather does not answer geography questions."
+        ),
+    ),
+    Benchmark(
+        category="tool_use",
+        prompt=(
+            "Convert the following natural-language request into a structured JSON object "
+            "with fields 'action', 'item', and 'quantity':\n"
+            "'Please add five bananas to my shopping cart.'"
+        ),
+        reference_answer='{"action": "add_to_cart", "item": "bananas", "quantity": 5}',
+    ),
+    # ── ADVANCED MATH (8) ─────────────────────────────────────────────────────────
+    Benchmark(
+        category="advanced_math",
+        prompt=(
+            "Solve for x: 3x² − 7x + 2 = 0. Show your working using the quadratic formula."
+        ),
+        reference_answer=(
+            "Using x = (7 ± √(49 − 24)) / 6 = (7 ± √25) / 6 = (7 ± 5) / 6. "
+            "So x = 12/6 = 2 or x = 2/6 = 1/3."
+        ),
+    ),
+    Benchmark(
+        category="advanced_math",
+        prompt="What is the derivative of f(x) = 3x⁴ − 5x² + 2x − 7? Show each step.",
+        reference_answer=(
+            "f'(x) = 12x³ − 10x + 2. "
+            "Applying the power rule term by term: d/dx(3x⁴)=12x³, d/dx(−5x²)=−10x, "
+            "d/dx(2x)=2, d/dx(−7)=0."
+        ),
+    ),
+    Benchmark(
+        category="advanced_math",
+        prompt="Evaluate the definite integral ∫₀² (x² + 3) dx. Show your working.",
+        reference_answer=(
+            "∫(x² + 3)dx = x³/3 + 3x + C. "
+            "Evaluated from 0 to 2: (8/3 + 6) − (0) = 8/3 + 6 = 26/3 ≈ 8.667."
+        ),
+    ),
+    Benchmark(
+        category="advanced_math",
+        prompt=(
+            "How many ways can a committee of 3 people be chosen from a group of 10? "
+            "Use the combination formula and show your working."
+        ),
+        reference_answer=(
+            "C(10,3) = 10! / (3! × 7!) = (10 × 9 × 8) / (3 × 2 × 1) = 720 / 6 = 120 ways."
+        ),
+    ),
+    Benchmark(
+        category="advanced_math",
+        prompt=(
+            "Prove that the sum of the first n positive integers equals n(n+1)/2 "
+            "using mathematical induction."
+        ),
+        reference_answer=(
+            "Base case: n=1, sum=1=1×2/2 ✓. "
+            "Inductive step: assume sum to k = k(k+1)/2. "
+            "Adding (k+1): k(k+1)/2 + (k+1) = (k+1)(k/2+1) = (k+1)(k+2)/2, "
+            "which matches the formula for n=k+1. ∎"
+        ),
+    ),
+    Benchmark(
+        category="advanced_math",
+        prompt=(
+            "A geometric series has first term a=5 and common ratio r=0.4. "
+            "What is the sum to infinity? Show your working."
+        ),
+        reference_answer=(
+            "For |r| < 1, S∞ = a / (1 − r) = 5 / (1 − 0.4) = 5 / 0.6 = 25/3 ≈ 8.333."
+        ),
+    ),
+    Benchmark(
+        category="advanced_math",
+        prompt=(
+            "Find the equation of the line passing through the points (2, 5) and (−1, −4). "
+            "Express your answer in slope-intercept form."
+        ),
+        reference_answer=(
+            "Slope m = (5 − (−4)) / (2 − (−1)) = 9/3 = 3. "
+            "Using point (2,5): 5 = 3(2) + b → b = −1. "
+            "Equation: y = 3x − 1."
+        ),
+    ),
+    Benchmark(
+        category="advanced_math",
+        prompt=(
+            "A fair six-sided die is rolled twice. "
+            "What is the probability that the sum of the two rolls equals 8? "
+            "List all favourable outcomes."
+        ),
+        reference_answer=(
+            "Favourable outcomes (die1, die2): (2,6),(3,5),(4,4),(5,3),(6,2) — 5 outcomes. "
+            "Total outcomes = 36. Probability = 5/36 ≈ 0.139."
         ),
     ),
 ]

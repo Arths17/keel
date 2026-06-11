@@ -339,7 +339,7 @@ def snapshot(
     """
     Load the model, run all benchmarks, and save a named capability snapshot.
 
-    This is a slow operation — it runs 20 benchmark prompts through the model
+    This is a slow operation — it runs 64 benchmark prompts through the model
     and saves the LoRA adapter weights to disk.  Plan for several minutes on CPU.
 
     Pass --no-update-baseline to take the snapshot without overwriting the

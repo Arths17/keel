@@ -80,7 +80,7 @@ That's it. The model is back to where it was before the dog forgot how to sit.
 
 When you call `model.snapshot("name")`, pyrecall:
 
-1. Runs **48 benchmark prompts** across six skill categories
+1. Runs **64 benchmark prompts** across eight skill categories
 2. Embeds each response using the model's own hidden states
 3. Scores each response against a reference answer via cosine similarity
 4. Saves scores + LoRA adapter weights to `~/.pyrecall/snapshots/`
@@ -95,6 +95,8 @@ All local. No API calls. Works offline.
 | `general_knowledge` | Science, history, geography |
 | `safety` | Refusals, harm avoidance, ethics |
 | `multilingual` | Translation, cross-lingual comprehension, language identification |
+| `tool_use` | Function calls, structured JSON output, tool selection |
+| `advanced_math` | Algebra, calculus, combinatorics, proof by induction |
 
 ### 2. Forgetting detection
 
