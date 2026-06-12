@@ -626,6 +626,54 @@ class TestSingleItemSeverityFallback:
         assert comp.severity not in ("MINOR", "OK")
 
 
+class TestSeverityMethodField:
+    def test_severity_method_effect_size_when_multi_item(self) -> None:
+        c = CategoryComparison(
+            category="coding", score_before=0.8, score_after=0.7, cohen_d=-0.5, n_items=5
+        )
+        assert c.severity_method == "effect_size"
+
+    def test_severity_method_delta_when_single_item(self) -> None:
+        c = CategoryComparison(
+            category="qa", score_before=0.8, score_after=0.5, cohen_d=0.0, n_items=1
+        )
+        assert c.severity_method == "delta"
+
+    def test_severity_method_delta_when_zero_items(self) -> None:
+        c = CategoryComparison(category="qa", score_before=0.8, score_after=0.5, n_items=0)
+        assert c.severity_method == "delta"
+
+    def test_severity_method_in_to_dict(self) -> None:
+        detector = ForgettingDetector(threshold=0.10)
+        before = _make_snapshot("b", {"coding": 0.8})
+        after = _make_snapshot("a", {"coding": 0.6})
+        report = detector.compare(before, after)
+        comp_dict = report.to_dict()["comparisons"][0]
+        assert "severity_method" in comp_dict
+        assert comp_dict["severity_method"] in ("effect_size", "delta")
+
+    def test_severity_method_effect_size_in_to_dict_for_multi_prompt(self) -> None:
+        before = _make_snapshot_with_items("b", {"coding": [0.8, 0.7]})
+        after = _make_snapshot_with_items("a", {"coding": [0.6, 0.5]})
+        report = ForgettingDetector().compare(before, after)
+        comp_dict = next(c for c in report.to_dict()["comparisons"] if c["category"] == "coding")
+        assert comp_dict["severity_method"] == "effect_size"
+
+
+class TestDeltaThresholdConstants:
+    def test_constants_exported(self) -> None:
+        from pyrecall.detector import _DELTA_MINOR, _DELTA_MODERATE, _DELTA_SEVERE
+
+        assert _DELTA_MINOR == 0.05
+        assert _DELTA_MODERATE == 0.15
+        assert _DELTA_SEVERE == 0.30
+
+    def test_constants_ordered(self) -> None:
+        from pyrecall.detector import _DELTA_MINOR, _DELTA_MODERATE, _DELTA_SEVERE
+
+        assert _DELTA_MINOR < _DELTA_MODERATE < _DELTA_SEVERE
+
+
 class TestBenchmarkCount:
     def test_default_benchmarks_total_160(self) -> None:
         from pyrecall.benchmarks.default import DEFAULT_BENCHMARKS

@@ -12,6 +12,11 @@ from rich.table import Table
 from .snapshot import SkillSnapshot
 from .utils import console as _shared_console
 
+# Delta-bucket thresholds used when n_items < 2 and effect size is unavailable.
+_DELTA_MINOR: float = 0.05
+_DELTA_MODERATE: float = 0.15
+_DELTA_SEVERE: float = 0.30
+
 
 @dataclass
 class PromptComparison:
@@ -43,8 +48,19 @@ class CategoryComparison:
     category: str
     score_before: float
     score_after: float
-    cohen_d: float = 0.0  # paired Cohen's d across per-item deltas (negative = forgetting)
+    # Standardized effect size of per-item score deltas (mean_delta / std_delta).
+    # Requires n_items ≥ 2; 0.0 when unavailable.
+    cohen_d: float = 0.0
     n_items: int = 0
+
+    @property
+    def severity_method(self) -> str:
+        """Which method was used to compute :attr:`severity`.
+
+        ``"effect_size"`` — standardized effect size of per-item deltas (n_items ≥ 2).
+        ``"delta"``       — absolute score-drop buckets (n_items < 2 fallback).
+        """
+        return "effect_size" if self.n_items >= 2 else "delta"
 
     @property
     def delta(self) -> float:
@@ -60,22 +76,24 @@ class CategoryComparison:
 
     @property
     def threshold_based_severity(self) -> str:
-        """Severity by absolute score delta — used when n_items < 2 and Cohen's d is unavailable.
+        """Severity by absolute score delta — used when n_items < 2 and effect size is unavailable.
+
+        Thresholds (_DELTA_MINOR / _DELTA_MODERATE / _DELTA_SEVERE) are module-level constants.
 
         OK       — no drop
-        MINOR    — |delta| < 0.05
-        MODERATE — 0.05 ≤ |delta| < 0.15
-        SEVERE   — 0.15 ≤ |delta| < 0.30
-        CRITICAL — |delta| ≥ 0.30
+        MINOR    — |delta| < _DELTA_MINOR  (0.05)
+        MODERATE — _DELTA_MINOR  ≤ |delta| < _DELTA_MODERATE (0.15)
+        SEVERE   — _DELTA_MODERATE ≤ |delta| < _DELTA_SEVERE  (0.30)
+        CRITICAL — |delta| ≥ _DELTA_SEVERE (0.30)
         """
         if self.delta >= 0:
             return "OK"
         d = abs(self.delta)
-        if d >= 0.30:
+        if d >= _DELTA_SEVERE:
             return "CRITICAL"
-        if d >= 0.15:
+        if d >= _DELTA_MODERATE:
             return "SEVERE"
-        if d >= 0.05:
+        if d >= _DELTA_MINOR:
             return "MODERATE"
         return "MINOR"
 
@@ -168,6 +186,7 @@ class ForgettingReport:
                     "cohen_d": round(c.cohen_d, 4),
                     "n_items": c.n_items,
                     "severity": c.severity,
+                    "severity_method": c.severity_method,
                     "status": "FORGOTTEN"
                     if (c.score_before - c.score_after) > self._threshold_for(c.category)
                     else "OK",
@@ -341,7 +360,7 @@ class ForgettingDetector:
             for cat, prompt in all_keys
         ]
 
-        # Compute paired Cohen's d per category from per-item deltas.
+        # Compute standardized effect size of per-item deltas per category.
         cat_deltas: dict[str, list[float]] = {}
         for pc in prompt_comparisons:
             cat_deltas.setdefault(pc.category, []).append(pc.score_after - pc.score_before)
