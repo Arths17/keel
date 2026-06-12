@@ -1044,10 +1044,9 @@
         <h3 id="model-diff">model.diff(snap1, snap2) <span class="badge badge-new">new</span></h3>
         <div class="method-sig">model.diff(snap1: str, snap2: str) → ForgettingReport</div>
         <p>
-          Compare two saved snapshots <strong>without loading the model or running benchmarks</strong>.
-          Loads both snapshots from disk and diffs the stored scores directly. This is fast
-          enough to run as a plain CI step and works even if the live model has changed since
-          the snapshots were taken.
+          Compare two saved snapshots <strong>without running new benchmarks or inference</strong>.
+          Loads both snapshots from disk and diffs the stored scores directly, so it works even if the
+          live model has changed since the snapshots were taken.
         </p>
         <p>
           Unlike <code>model.check()</code>, no inference runs at all — the comparison is
