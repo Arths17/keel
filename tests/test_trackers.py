@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from pyrecall.snapshot import SkillScore, SkillSnapshot
-from pyrecall.trackers import MLflowTracker, SnapshotTracker, WandbTracker
+from pyrecall.trackers import MLflowTracker, NeptuneTracker, SnapshotTracker, WandbTracker
 
 
 def _make_snapshot(name: str = "test_snap") -> SkillSnapshot:
@@ -32,6 +32,9 @@ class TestSnapshotTrackerProtocol:
 
     def test_mlflow_tracker_satisfies_protocol(self) -> None:
         assert isinstance(MLflowTracker(), SnapshotTracker)
+
+    def test_neptune_tracker_satisfies_protocol(self) -> None:
+        assert isinstance(NeptuneTracker(project="ws/proj"), SnapshotTracker)
 
     def test_custom_tracker_satisfies_protocol(self) -> None:
         class MyTracker:
@@ -215,3 +218,70 @@ class TestModelSnapshotTrackerIntegration:
         with patch("pyrecall.model.Model._run_benchmarks", return_value=snap.scores):
             m = self._make_model(snap.scores)
             m.snapshot("v1")  # no tracker — should not raise
+
+
+# ── NeptuneTracker ────────────────────────────────────────────────────────────
+
+
+class TestNeptuneTracker:
+    def test_raises_import_error_when_neptune_missing(self) -> None:
+        snap = _make_snapshot()
+        tracker = NeptuneTracker(project="ws/proj")
+        with patch.dict("sys.modules", {"neptune": None}):
+            with pytest.raises(ImportError, match="neptune"):
+                tracker.log_snapshot(snap)
+
+    def test_calls_init_run_with_snapshot_name_and_project(self) -> None:
+        snap = _make_snapshot("my_snap")
+        mock_neptune = MagicMock()
+        mock_run = MagicMock()
+        mock_neptune.init_run.return_value = mock_run
+
+        with patch.dict("sys.modules", {"neptune": mock_neptune}):
+            NeptuneTracker(project="ws/proj").log_snapshot(snap)
+
+        mock_neptune.init_run.assert_called_once()
+        call_kwargs = mock_neptune.init_run.call_args[1]
+        assert call_kwargs["name"] == "my_snap"
+        assert call_kwargs["project"] == "ws/proj"
+
+    def test_logs_overall_and_category_metrics(self) -> None:
+        snap = _make_snapshot()
+        mock_neptune = MagicMock()
+        mock_run = MagicMock()
+        mock_neptune.init_run.return_value = mock_run
+
+        with patch.dict("sys.modules", {"neptune": mock_neptune}):
+            NeptuneTracker(project="ws/proj").log_snapshot(snap)
+
+        assigned_keys = [call[0][0] for call in mock_run.__setitem__.call_args_list]
+        assert "pyrecall/overall" in assigned_keys
+        assert "pyrecall/coding" in assigned_keys
+        assert "pyrecall/reasoning" in assigned_keys
+
+    def test_includes_pyrecall_tag(self) -> None:
+        snap = _make_snapshot()
+        mock_neptune = MagicMock()
+        mock_run = MagicMock()
+        mock_neptune.init_run.return_value = mock_run
+
+        with patch.dict("sys.modules", {"neptune": mock_neptune}):
+            NeptuneTracker(project="ws/proj").log_snapshot(snap)
+
+        call_kwargs = mock_neptune.init_run.call_args[1]
+        assert "pyrecall" in call_kwargs["tags"]
+
+    def test_calls_stop(self) -> None:
+        snap = _make_snapshot()
+        mock_neptune = MagicMock()
+        mock_run = MagicMock()
+        mock_neptune.init_run.return_value = mock_run
+
+        with patch.dict("sys.modules", {"neptune": mock_neptune}):
+            NeptuneTracker(project="ws/proj").log_snapshot(snap)
+
+        mock_run.stop.assert_called_once()
+
+    def test_default_project_stored(self) -> None:
+        tracker = NeptuneTracker(project="workspace/myproject")
+        assert tracker.project == "workspace/myproject"

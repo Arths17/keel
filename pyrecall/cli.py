@@ -114,7 +114,9 @@ def _build_rollback_manager(config: dict):
     return RollbackManager(model_name=config["model_name"])
 
 
-def _build_trackers(log_wandb: bool, log_mlflow: bool):
+def _build_trackers(
+    log_wandb: bool, log_mlflow: bool, log_neptune: bool = False, neptune_project: str | None = None
+):
     trackers: list = []
     if log_wandb:
         from pyrecall.trackers import WandbTracker
@@ -124,6 +126,15 @@ def _build_trackers(log_wandb: bool, log_mlflow: bool):
         from pyrecall.trackers import MLflowTracker
 
         trackers.append(MLflowTracker())
+    if log_neptune:
+        from pyrecall.trackers import NeptuneTracker
+
+        if not neptune_project:
+            raise typer.BadParameter(
+                "--neptune-project is required when --log-neptune is set",
+                param_hint="--neptune-project",
+            )
+        trackers.append(NeptuneTracker(project=neptune_project))
     return trackers if trackers else None
 
 
@@ -308,6 +319,20 @@ def learn(
             help="Log snapshot scores to MLflow (requires pip install pyrecall[mlflow])",
         ),
     ] = False,
+    log_neptune: Annotated[
+        bool,
+        typer.Option(
+            "--log-neptune",
+            help="Log snapshot scores to Neptune (requires pip install pyrecall[neptune])",
+        ),
+    ] = False,
+    neptune_project: Annotated[
+        str | None,
+        typer.Option(
+            "--neptune-project",
+            help="Neptune project in 'workspace/project' format (required with --log-neptune)",
+        ),
+    ] = None,
 ) -> None:
     """
     Fine-tune the model on a local dataset.
@@ -347,7 +372,7 @@ def learn(
         replay_mix_ratio=config.get("replay_mix_ratio", 0.3),
     )
 
-    tracker = _build_trackers(log_wandb, log_mlflow)
+    tracker = _build_trackers(log_wandb, log_mlflow, log_neptune, neptune_project)
 
     if snapshot_before:
         model_obj.snapshot(name=snapshot_before, tracker=tracker)
@@ -403,6 +428,20 @@ def snapshot(
             "--log-mlflow", help="Log scores to MLflow (requires pip install pyrecall[mlflow])"
         ),
     ] = False,
+    log_neptune: Annotated[
+        bool,
+        typer.Option(
+            "--log-neptune",
+            help="Log scores to Neptune (requires pip install pyrecall[neptune])",
+        ),
+    ] = False,
+    neptune_project: Annotated[
+        str | None,
+        typer.Option(
+            "--neptune-project",
+            help="Neptune project in 'workspace/project' format (required with --log-neptune)",
+        ),
+    ] = None,
 ) -> None:
     """
     Load the model, run all benchmarks, and save a named capability snapshot.
@@ -431,7 +470,7 @@ def snapshot(
         replay_buffer_size=config.get("replay_buffer_size", 500),
         replay_mix_ratio=config.get("replay_mix_ratio", 0.3),
     )
-    tracker = _build_trackers(log_wandb, log_mlflow)
+    tracker = _build_trackers(log_wandb, log_mlflow, log_neptune, neptune_project)
     model_obj.snapshot(name=name, tracker=tracker)
 
     if not no_update_baseline:

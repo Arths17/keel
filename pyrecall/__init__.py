@@ -23,7 +23,7 @@ from .model import Model, PyrecallError
 from .replay import ReplayBuffer
 from .rollback import RollbackManager
 from .snapshot import SkillScore, SkillSnapshot
-from .trackers import MLflowTracker, SnapshotTracker, WandbTracker
+from .trackers import MLflowTracker, NeptuneTracker, SnapshotTracker, WandbTracker
 
 __all__ = [
     "Model",
@@ -39,6 +39,7 @@ __all__ = [
     "SnapshotTracker",
     "WandbTracker",
     "MLflowTracker",
+    "NeptuneTracker",
 ]
 
 try:

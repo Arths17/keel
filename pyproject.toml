@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pyrecall"
-version = "0.6.0"
+version = "0.6.1"
 description = "Keep your models balanced. Continuous fine-tuning with automatic forgetting detection and skill rollback."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -50,9 +50,13 @@ wandb = [
 mlflow = [
     "mlflow>=2.0.0",
 ]
+neptune = [
+    "neptune>=1.0.0",
+]
 trackers = [
     "wandb>=0.16.0",
     "mlflow>=2.0.0",
+    "neptune>=1.0.0",
 ]
 privacy = [
     "cryptography>=41.0.0",

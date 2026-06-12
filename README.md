@@ -331,14 +331,32 @@ Metrics are logged as `pyrecall.<category>` and `pyrecall.overall`.  The snapsho
 
 ### CLI flags
 
-Pass `--log-wandb` or `--log-mlflow` to any command that takes a snapshot:
+Pass `--log-wandb`, `--log-mlflow`, or `--log-neptune` to any command that takes a snapshot:
 
 ```bash
 pyrecall snapshot before_v1 --log-wandb
 pyrecall learn train.jsonl --snapshot-after after_v1 --log-mlflow
+pyrecall snapshot before_v1 --log-neptune --neptune-project workspace/my-project
 ```
 
-Both flags can be combined to log to both trackers simultaneously.
+All three flags can be combined to log to multiple trackers simultaneously. `--log-neptune` requires `--neptune-project workspace/project`.
+
+### Neptune
+
+```bash
+pip install pyrecall[neptune]
+```
+
+```python
+from pyrecall import Model
+from pyrecall.trackers import NeptuneTracker
+
+model = Model("meta-llama/Llama-3.2-1B")
+tracker = NeptuneTracker(project="workspace/my-project")
+model.snapshot("before_v1", tracker=tracker)
+```
+
+Each snapshot becomes a Neptune run named after the snapshot. Per-category scores are logged as `pyrecall/<category>` fields, plus `pyrecall/overall`. The `pyrecall` tag and model name are stored as run tags.
 
 ### Custom trackers
 
