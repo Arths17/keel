@@ -350,8 +350,15 @@ class Model:
                 )
 
         # Make sure the dataset actually contains rows.
-        if len(dataset[text_col]) == 0:
-            raise PyrecallError(f"Training data '{data_path}' is empty.")
+        # Make sure dataset actually has usable rows
+        try:
+            # safer check for HuggingFace Dataset + mocks
+            if dataset.num_rows == 0:
+                raise PyrecallError(f"Training data '{data_path}' is empty.")
+        except Exception:
+            # fallback for mocked datasets
+            if len(dataset) == 0:
+                raise PyrecallError(f"Training data '{data_path}' is empty.")
         # Collect the raw new texts now (before any mixing) so we can add them
         # to the replay buffer after training without including replayed examples.
         new_texts: list[str] = dataset[text_col] if self.replay_buffer is not None else []
