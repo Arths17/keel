@@ -319,9 +319,7 @@ class Model:
 
         # Infer the text column.
         if not dataset.column_names:
-            raise PyrecallError(
-                f"Training data '{data_path}' contains no columns."
-            )
+            raise PyrecallError(f"Training data '{data_path}' contains no columns.")
 
         if "text" in dataset.column_names:
             text_col = "text"
@@ -352,9 +350,7 @@ class Model:
 
         # Make sure the dataset actually contains rows.
         if len(dataset[text_col]) == 0:
-            raise PyrecallError(
-                f"Training data '{data_path}' is empty."
-            )
+            raise PyrecallError(f"Training data '{data_path}' is empty.")
         # Collect the raw new texts now (before any mixing) so we can add them
         # to the replay buffer after training without including replayed examples.
         new_texts: list[str] = dataset[text_col] if self.replay_buffer is not None else []
