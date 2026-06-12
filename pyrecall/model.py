@@ -141,6 +141,7 @@ class Model:
                 f"Unknown scoring_method '{scoring_method}'. "
                 "Use 'log_likelihood' (recommended) or 'cosine' (legacy)."
             )
+        self.rollback_manager = RollbackManager(model_name=model_name, base_dir=snapshot_dir)
         self.base_dir = snapshot_dir or (Path.home() / ".pyrecall")
         self._baseline_snapshot_name: str | None = None
         self._baseline_file = self.rollback_manager.base_dir / ".current_baseline"
@@ -208,8 +209,6 @@ class Model:
         if not bnb_config:
             self.model = self.model.to(self.device)
         self.model.eval()
-
-        self.rollback_manager = RollbackManager(model_name=model_name, base_dir=snapshot_dir)
         self.detector = ForgettingDetector(
             threshold=forgetting_threshold,
             category_thresholds=category_thresholds,
