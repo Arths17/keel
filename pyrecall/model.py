@@ -147,7 +147,7 @@ class Model:
         self.batch_size = batch_size
         self.scoring_method = scoring_method
         self.max_length = max_length
-        self._replay_mix_ratio = replay_mix_rat
+        self._replay_mix_ratio = replay_mix_ratio
 
         self.replay_buffer: ReplayBuffer | None = (
             ReplayBuffer(model_name=model_name, max_size=replay_buffer_size, base_dir=snapshot_dir)
@@ -478,13 +478,14 @@ class Model:
         after = SkillSnapshot(name=after_name, model_name=self.model_name, scores=after_scores)
         after.save(self.rollback_manager.base_dir / after_name)
 
+
         if self._baseline_snapshot_name is None:
             raise PyrecallError(
                 "No baseline snapshot found.\n"
                 "Call model.snapshot(name='before_v1') before fine-tuning."
             )
 
-        baseline_name = self._baseline_snapshot_name
+
 
         report = self.detector.compare(before, after)
         report.print()
@@ -524,7 +525,6 @@ class Model:
         report = self.detector.compare(before, after)
         report.print()
         return report
-
     def rollback(self, to: str) -> None:
         """
         Restore the model to the state captured in snapshot *to*.
@@ -543,7 +543,9 @@ class Model:
         snap = self.rollback_manager.load_snapshot(to)
 
         if not snap or snap.adapter_path is None:
-            raise PyrecallError(f"Snapshot '{to}' is invalid or missing adapter metadata.")
+            raise PyrecallError(
+                f"Snapshot '{to}' is invalid or missing adapter metadata."
+            )
 
         if not snap.adapter_path.exists():
             raise PyrecallError(
@@ -722,7 +724,6 @@ class Model:
             (self.base_dir / ".current_baseline").write_text(name)
         except Exception:
             pass
-
     def _run_benchmarks(self) -> list[SkillScore]:
         """Run default + custom benchmarks and return SkillScore objects."""
         all_benchmarks = DEFAULT_BENCHMARKS + self.custom_benchmarks.load_all()
