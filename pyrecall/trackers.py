@@ -158,7 +158,9 @@ class NeptuneTracker:
             tags=["pyrecall", snapshot.model_name],
             **self._init_kwargs,
         )
-        for cat, score in snapshot.category_scores().items():
-            run[f"pyrecall/{cat}"] = score
-        run["pyrecall/overall"] = snapshot.overall_score()
-        run.stop()
+        try:
+            for cat, score in snapshot.category_scores().items():
+                run[f"pyrecall/{cat}"] = score
+            run["pyrecall/overall"] = snapshot.overall_score()
+        finally:
+            run.stop()
