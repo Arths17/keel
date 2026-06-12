@@ -272,7 +272,8 @@ class Model:
                     logger.warning("Tracker %s failed to log snapshot: %s", type(t).__name__, exc)
 
         return snap
-
+    def save_baseline(self, model_state):
+        self._baseline = model_state
     def learn(
         self,
         data_path: str,
