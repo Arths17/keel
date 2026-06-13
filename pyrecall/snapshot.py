@@ -72,7 +72,13 @@ class SkillSnapshot:
 
     # ── persistence ────────────────────────────────────────────────────────────
     def save(self, directory: Path, privacy: bool = False) -> None:
-        """Write snapshot metadata to *directory*/snapshot.json."""
+        """Write snapshot metadata to ``directory/snapshot.json``.
+
+        The file is always named ``snapshot.json`` inside *directory* —
+        no subdirectory is created from the snapshot name.  Pass the
+        snapshot's own directory (e.g. ``base / snapshot.name``) if you
+        want the canonical on-disk layout used by :class:`RollbackManager`.
+        """
         directory.mkdir(parents=True, exist_ok=True)
         if not privacy:
             data = {

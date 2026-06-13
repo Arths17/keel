@@ -96,7 +96,11 @@ class RollbackManager:
         return SkillSnapshot.load(snap_dir)
 
     def list_snapshots(self) -> list[SkillSnapshot]:
-        """Return all saved snapshots sorted by creation time (oldest first)."""
+        """Return all saved snapshots sorted by creation time (oldest first).
+
+        Each element is a :class:`~pyrecall.snapshot.SkillSnapshot` object.
+        To get just the names use :meth:`list_snapshot_names`.
+        """
         if not self.base_dir.exists():
             return []
         snapshots: list[SkillSnapshot] = []
@@ -107,6 +111,10 @@ class RollbackManager:
                 except Exception as exc:
                     logger.warning("Could not load snapshot at %s: %s", snap_dir, exc)
         return sorted(snapshots, key=lambda s: s.created_at)
+
+    def list_snapshot_names(self) -> list[str]:
+        """Return the names of all saved snapshots sorted by creation time (oldest first)."""
+        return [s.name for s in self.list_snapshots()]
 
     def delete_snapshot(self, name: str) -> None:
         """Permanently delete a snapshot and its adapter weights."""
