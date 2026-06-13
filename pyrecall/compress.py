@@ -84,9 +84,9 @@ def decompressed_adapter(adapter_dir: Path, codec: str):
     try:
         ext = f".{codec}"
         for src in adapter_dir.iterdir():
-            if src.name.endswith(ext) and src.suffixes[-2] in (s for s in _WEIGHT_SUFFIXES):
+            original_name = src.name[: -len(ext)]
+            if src.name.endswith(ext) and Path(original_name).suffix in _WEIGHT_SUFFIXES:
                 # e.g. adapter_model.bin.gzip → adapter_model.bin
-                original_name = src.name[: -len(ext)]
                 _decompress_file(src, tmp / original_name, codec)
             else:
                 # Copy non-weight files (config, index, etc.) as-is.
