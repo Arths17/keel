@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
+import inspect
+import warnings
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -62,6 +66,31 @@ class PyrecallError(Exception):
     """Raised for user-facing operational errors in pyrecall."""
 
 
+# Type alias for a single forgetting callback or a list of them.
+ForgettingCallback = Callable[["ForgettingReport"], Any]
+
+
+def _fire_callbacks(
+    callbacks: list[ForgettingCallback],
+    report: ForgettingReport,
+) -> None:
+    """Invoke each callback with *report*, handling async and exceptions gracefully."""
+    for cb in callbacks:
+        try:
+            result = cb(report)
+            if inspect.iscoroutine(result):
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(result)
+                except RuntimeError:
+                    asyncio.run(result)
+        except Exception as exc:  # noqa: BLE001
+            warnings.warn(
+                f"pyrecall: callback {cb!r} raised {type(exc).__name__}: {exc}",
+                stacklevel=2,
+            )
+
+
 class Model:
     """
     A HuggingFace causal LM wrapped for continuous fine-tuning.
@@ -106,6 +135,8 @@ class Model:
         replay_buffer_size: int = 500,
         replay_mix_ratio: float = 0.3,
         scoring_method: str = "log_likelihood",
+        on_forgetting: ForgettingCallback | list[ForgettingCallback] | None = None,
+        on_healthy: ForgettingCallback | list[ForgettingCallback] | None = None,
     ) -> None:
         """
         Load *model_name* from HuggingFace Hub (or local cache) and wrap it with LoRA.
@@ -128,6 +159,11 @@ class Model:
                 the replay buffer. Set to 0 to disable the buffer entirely.
             replay_mix_ratio: Fraction of each training batch to fill with replayed
                 examples, e.g. 0.3 means 30 % of examples come from the buffer.
+            on_forgetting: Callable (or list of callables) invoked with the
+                :class:`~pyrecall.detector.ForgettingReport` when forgetting is detected.
+                Sync and async callables are both supported. Exceptions are caught and
+                surfaced as warnings so they never crash the training run.
+            on_healthy: Same as *on_forgetting* but invoked when no forgetting is detected.
         """
         if strategy not in ("lora", "qlora"):
             raise PyrecallError(
@@ -155,6 +191,12 @@ class Model:
         self.scoring_method = scoring_method
         self.max_length = max_length
         self._replay_mix_ratio = replay_mix_ratio
+        self._on_forgetting: list[ForgettingCallback] = (
+            [on_forgetting] if callable(on_forgetting) else list(on_forgetting or [])
+        )
+        self._on_healthy: list[ForgettingCallback] = (
+            [on_healthy] if callable(on_healthy) else list(on_healthy or [])
+        )
         self.replay_buffer: ReplayBuffer | None = (
             ReplayBuffer(model_name=model_name, max_size=replay_buffer_size, base_dir=snapshot_dir)
             if replay_buffer_size > 0
@@ -486,6 +528,10 @@ class Model:
 
         report = self.detector.compare(before, after)
         report.print()
+        if report.is_healthy:
+            _fire_callbacks(self._on_healthy, report)
+        else:
+            _fire_callbacks(self._on_forgetting, report)
         return report
 
     def diff(self, snap1: str, snap2: str) -> ForgettingReport:
