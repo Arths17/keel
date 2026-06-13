@@ -1720,6 +1720,106 @@ class TestHistory:
         assert "last" in result.output
 
 
+# ── history --health / --json ─────────────────────────────────────────────────
+
+
+class TestHistoryHealth:
+    def test_health_shows_healthy_status(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path)
+        snap_a = _make_snapshot("before", {"coding": 0.80})
+        snap_b = _make_snapshot("after", {"coding": 0.82})
+        mgr = _make_mock_manager(snapshots=[snap_a, snap_b])
+
+        with patch("pyrecall.rollback.RollbackManager", return_value=mgr):
+            result = runner.invoke(app, ["history", "--health"])
+
+        assert result.exit_code == 0
+        assert "healthy" in result.output
+
+    def test_health_shows_degraded_when_forgetting(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path)
+        snap_a = _make_snapshot("before", {"coding": 0.90})
+        snap_b = _make_snapshot("after", {"coding": 0.50})
+        mgr = _make_mock_manager(snapshots=[snap_a, snap_b])
+
+        with patch("pyrecall.rollback.RollbackManager", return_value=mgr):
+            result = runner.invoke(app, ["history", "--health"])
+
+        assert result.exit_code == 0
+        assert "DEGRADED" in result.output
+        assert "coding" in result.output
+
+    def test_health_first_snapshot_shows_first_marker(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path)
+        snap_a = _make_snapshot("baseline", {"coding": 0.80})
+        snap_b = _make_snapshot("after", {"coding": 0.82})
+        mgr = _make_mock_manager(snapshots=[snap_a, snap_b])
+
+        with patch("pyrecall.rollback.RollbackManager", return_value=mgr):
+            result = runner.invoke(app, ["history", "--health"])
+
+        assert result.exit_code == 0
+        assert (
+            "first" in result.output.lower()
+            or "baseline" in result.output.lower()
+            or "—" in result.output
+        )
+
+    def test_health_json_output(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path)
+        snap_a = _make_snapshot("before", {"coding": 0.90})
+        snap_b = _make_snapshot("after", {"coding": 0.50})
+        mgr = _make_mock_manager(snapshots=[snap_a, snap_b])
+
+        with patch("pyrecall.rollback.RollbackManager", return_value=mgr):
+            result = runner.invoke(app, ["history", "--json"])
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert "snapshots" in data
+        assert len(data["snapshots"]) == 2
+        assert data["snapshots"][1]["status"] == "degraded"
+
+    def test_health_json_healthy(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path)
+        snap_a = _make_snapshot("v1", {"coding": 0.80})
+        snap_b = _make_snapshot("v2", {"coding": 0.82})
+        mgr = _make_mock_manager(snapshots=[snap_a, snap_b])
+
+        with patch("pyrecall.rollback.RollbackManager", return_value=mgr):
+            result = runner.invoke(app, ["history", "--json"])
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["snapshots"][1]["status"] == "healthy"
+        assert data["snapshots"][0]["status"] == "first"
+
+    def test_health_shows_dropped_category_in_notes(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path)
+        snap_a = _make_snapshot("before", {"safety": 0.90, "coding": 0.80})
+        snap_b = _make_snapshot("after", {"safety": 0.50, "coding": 0.80})
+        mgr = _make_mock_manager(snapshots=[snap_a, snap_b])
+
+        with patch("pyrecall.rollback.RollbackManager", return_value=mgr):
+            result = runner.invoke(app, ["history", "--health"])
+
+        assert "safety" in result.output
+
+
 # ── export ────────────────────────────────────────────────────────────────────
 
 
