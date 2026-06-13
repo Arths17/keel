@@ -1298,6 +1298,154 @@ def benchmark_remove(
     console.print(f"[green]✓[/green] Removed benchmark suite [bold]{name}[/bold].")
 
 
+@benchmark_app.command("validate")
+def benchmark_validate(
+    name: Annotated[str, typer.Argument(help="Name of the custom suite to validate")],
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Output results as JSON instead of formatted report."),
+    ] = False,
+) -> None:
+    """
+    Run static quality checks on a custom benchmark suite without loading a model.
+
+    Checks prompt length, reference answer length, duplicate prompts, category
+    balance, and reference answer variety. No inference is performed.
+
+        pyrecall benchmark validate my_suite
+        pyrecall benchmark validate my_suite --json
+
+    Exit code 0 if no errors (warnings are non-blocking); 1 if errors found.
+    """
+    from collections import Counter
+
+    from pyrecall.benchmarks.custom import CustomBenchmarkManager, _parse_jsonl
+
+    mgr = CustomBenchmarkManager()
+    suite_path = mgr.base_dir / f"{name}.jsonl"
+
+    if not suite_path.exists():
+        from pyrecall.benchmarks.default import CATEGORIES
+
+        if name in CATEGORIES:
+            console.print(
+                f"[dim]'{name}' is a built-in benchmark category — no validation needed.[/dim]"
+            )
+            return
+        available = [s["name"] for s in mgr.suites()]
+        console.print(
+            f"[red]Error:[/red] Suite '{name}' not found.\n"
+            f"Available: {available or ['(none registered)']}"
+        )
+        raise typer.Exit(1)
+
+    entries = _parse_jsonl(suite_path)
+    if not entries:
+        console.print(f"[red]Error:[/red] Suite '{name}' is empty or contains no valid entries.")
+        raise typer.Exit(1)
+
+    prompts = [e["prompt"] for e in entries]
+    refs = [e["reference_answer"] for e in entries]
+    cats = [e.get("category", name) for e in entries]
+
+    errors: list[str] = []
+    warnings: list[str] = []
+    infos: list[str] = []
+
+    # ERROR: prompt too short (< 10 tokens by whitespace split)
+    for e in entries:
+        p = e["prompt"]
+        if len(p.split()) < 10:
+            errors.append(f'Prompt too short ({len(p.split())} tokens): "{p[:60]}"')
+
+    # ERROR: reference answer too short (< 3 tokens)
+    for e in entries:
+        r = e["reference_answer"]
+        if len(r.split()) < 3:
+            errors.append(
+                f'Reference answer too short ({len(r.split())} tokens): "{r}" '
+                f'(prompt: "{e["prompt"][:40]}")'
+            )
+
+    # ERROR: duplicate prompts within the suite
+    seen: set[str] = set()
+    for p in prompts:
+        if p in seen:
+            errors.append(f'Duplicate prompt: "{p[:60]}"')
+        seen.add(p)
+
+    # WARNING: any category with only 1 prompt (Cohen's d unavailable)
+    cat_counts = Counter(cats)
+    for cat, count in cat_counts.items():
+        if count == 1:
+            warnings.append(
+                f"Category '{cat}' has only 1 prompt — Cohen's d will not be computed for it."
+            )
+
+    # WARNING: all reference answers identical
+    if len(set(refs)) == 1:
+        warnings.append(
+            "All reference answers are identical — suite may not differentiate model quality."
+        )
+
+    # INFO: prompts not ending with a sentence-ending character
+    odd = [p for p in prompts if not p.rstrip().endswith(("?", ":", "."))]
+    if odd:
+        infos.append(
+            f"{len(odd)} prompt(s) don't end with '?', ':', or '.' — "
+            "verify they are complete sentences."
+        )
+
+    n_cats = len(cat_counts)
+
+    if json_output:
+        typer.echo(
+            json.dumps(
+                {
+                    "suite": name,
+                    "prompts": len(entries),
+                    "categories": n_cats,
+                    "errors": errors,
+                    "warnings": warnings,
+                    "info": infos,
+                    "valid": len(errors) == 0,
+                },
+                indent=2,
+            )
+        )
+    else:
+        cat_label = "categories" if n_cats != 1 else "category"
+        console.print(
+            f"\nValidating suite '[bold]{name}[/bold]' "
+            f"({len(entries)} prompt{'s' if len(entries) != 1 else ''} "
+            f"across {n_cats} {cat_label})…\n"
+        )
+        for msg in errors:
+            console.print(f"  [red]✗[/red]  {msg}")
+        for msg in warnings:
+            console.print(f"  [yellow]⚠[/yellow]  {msg}")
+        for msg in infos:
+            console.print(f"  [dim]ℹ[/dim]  {msg}")
+        if not errors and not warnings and not infos:
+            console.print("  [green]✓[/green]  All checks passed.")
+
+        parts = []
+        if errors:
+            parts.append(f"[red]{len(errors)} error{'s' if len(errors) != 1 else ''}[/red]")
+        if warnings:
+            parts.append(
+                f"[yellow]{len(warnings)} warning{'s' if len(warnings) != 1 else ''}[/yellow]"
+            )
+        if infos:
+            parts.append(f"[dim]{len(infos)} info[/dim]")
+        console.print(f"\nResult: {', '.join(parts) if parts else '[green]clean[/green]'}.")
+        if errors:
+            console.print("[dim]  Fix errors before using this suite in model.snapshot().[/dim]\n")
+
+    if errors:
+        raise typer.Exit(1)
+
+
 # ── replay subcommands ─────────────────────────────────────────────────────────
 
 
