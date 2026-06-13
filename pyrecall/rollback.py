@@ -75,6 +75,7 @@ class RollbackManager:
 
         if adapter_staging.exists():
             shutil.rmtree(adapter_staging)
+        adapter_staging.mkdir(parents=True, exist_ok=True)
 
         peft_model.save_pretrained(str(adapter_staging))
         logger.debug("Adapter staged to %s", adapter_staging)
