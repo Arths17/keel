@@ -83,6 +83,7 @@ def patched_model(tmp_snapshot_dir: Path):
         patch("pyrecall.model.get_peft_model", return_value=mock_peft),
         patch("pyrecall.model.compute_embeddings", return_value=torch.randn(32)),
         patch("pyrecall.model.cosine_similarity", return_value=0.75),
+        patch("pyrecall.model.compute_log_likelihood", return_value=0.368),
     ):
         from pyrecall.model import Model
 
@@ -144,7 +145,8 @@ class TestModelSnapshot:
     def test_snapshot_has_correct_score_count(self, patched_model) -> None:
         from pyrecall.benchmarks.default import DEFAULT_BENCHMARKS
 
-        snap = patched_model.snapshot(name="count_test")
+        with patch("pyrecall.model.CustomBenchmarkManager.load_all", return_value=[]):
+            snap = patched_model.snapshot(name="count_test")
         assert len(snap.scores) == len(DEFAULT_BENCHMARKS)
 
     def test_snapshot_scores_normalised(self, patched_model) -> None:
