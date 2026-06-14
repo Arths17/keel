@@ -813,3 +813,65 @@ class TestStreamingLearn:
             cb.on_log(None, state, None, logs={"learning_rate": 2e-4})
             mock_update.assert_not_called()
             assert cb.last_loss is None
+
+    def test_stream_error_is_reraised(self, patched_model, tmp_path: Path) -> None:
+        data_file = tmp_path / "train.jsonl"
+        data_file.write_text('{"text": "hi"}\n')
+
+        mock_trainer = MagicMock()
+        mock_trainer.train.side_effect = RuntimeError("GPU OOM")
+
+        with (
+            patch("pyrecall.model.load_dataset") as mock_ds,
+            patch("pyrecall.model.Trainer", return_value=mock_trainer),
+            patch("pyrecall.model.TrainingArguments"),
+            patch("pyrecall.model.DataCollatorForLanguageModeling"),
+        ):
+            mock_dataset = MagicMock()
+            mock_dataset.column_names = ["text"]
+            mock_dataset.__len__.return_value = 4
+            mock_dataset.num_rows = 4
+            mock_dataset.map.return_value = mock_dataset
+            mock_ds.return_value = mock_dataset
+
+            with pytest.raises(RuntimeError, match="GPU OOM"):
+                patched_model.learn(str(data_file), epochs=1, stream=True)
+
+    def test_stream_progress_stopped_on_trainer_error(self, patched_model, tmp_path: Path) -> None:
+        from unittest.mock import patch as _patch
+
+        from pyrecall.model import _StreamingCallback
+
+        data_file = tmp_path / "train.jsonl"
+        data_file.write_text('{"text": "hi"}\n')
+
+        captured: list[_StreamingCallback] = []
+        original_init = _StreamingCallback.__init__
+
+        def spy_init(self_cb, *args, **kwargs):
+            original_init(self_cb, *args, **kwargs)
+            self_cb._progress.stop = MagicMock()
+            captured.append(self_cb)
+
+        mock_trainer = MagicMock()
+        mock_trainer.train.side_effect = RuntimeError("GPU OOM")
+
+        with (
+            patch("pyrecall.model.load_dataset") as mock_ds,
+            patch("pyrecall.model.Trainer", return_value=mock_trainer),
+            patch("pyrecall.model.TrainingArguments"),
+            patch("pyrecall.model.DataCollatorForLanguageModeling"),
+            _patch.object(_StreamingCallback, "__init__", spy_init),
+        ):
+            mock_dataset = MagicMock()
+            mock_dataset.column_names = ["text"]
+            mock_dataset.__len__.return_value = 4
+            mock_dataset.num_rows = 4
+            mock_dataset.map.return_value = mock_dataset
+            mock_ds.return_value = mock_dataset
+
+            with pytest.raises(RuntimeError, match="GPU OOM"):
+                patched_model.learn(str(data_file), epochs=1, stream=True)
+
+        assert captured, "no _StreamingCallback was instantiated"
+        captured[0]._progress.stop.assert_called()
