@@ -423,6 +423,12 @@ class Model:
                 cat: _SEVERITY_WEIGHT.get(sev, 1.0) for cat, sev in replay_weights.severity.items()
             }
         elif replay_weights is not None:
+            bad = {k: v for k, v in replay_weights.items() if v < 0}
+            if bad:
+                raise PyrecallError(
+                    f"replay_weights values must be non-negative; got {bad}. "
+                    "Use 0.0 to exclude a category entirely."
+                )
             resolved_replay_weights = replay_weights
 
         data_file = Path(data_path)

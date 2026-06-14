@@ -875,3 +875,65 @@ class TestStreamingLearn:
 
         assert captured, "no _StreamingCallback was instantiated"
         captured[0]._progress.stop.assert_called()
+
+
+class TestReplayWeightsValidation:
+    """learn() must raise immediately on negative replay_weights values."""
+
+    def _run_learn(self, patched_model, data_file, **kwargs):
+        with (
+            patch("pyrecall.model.load_dataset") as mock_ds,
+            patch("pyrecall.model.Trainer"),
+            patch("pyrecall.model.TrainingArguments"),
+            patch("pyrecall.model.DataCollatorForLanguageModeling"),
+        ):
+            mock_dataset = MagicMock()
+            mock_dataset.column_names = ["text"]
+            mock_dataset.__len__.return_value = 4
+            mock_dataset.num_rows = 4
+            mock_dataset.map.return_value = mock_dataset
+            mock_ds.return_value = mock_dataset
+            patched_model.learn(str(data_file), epochs=1, **kwargs)
+
+    def test_negative_weight_raises(self, patched_model, tmp_path: Path) -> None:
+        from pyrecall.model import PyrecallError
+
+        data_file = tmp_path / "train.jsonl"
+        data_file.write_text(json.dumps({"text": "hi"}) + "\n")
+        with pytest.raises(PyrecallError, match="non-negative"):
+            self._run_learn(patched_model, data_file, replay_weights={"coding": -1.0})
+
+    def test_negative_weight_names_bad_key_in_error(self, patched_model, tmp_path: Path) -> None:
+        from pyrecall.model import PyrecallError
+
+        data_file = tmp_path / "train.jsonl"
+        data_file.write_text(json.dumps({"text": "hi"}) + "\n")
+        with pytest.raises(PyrecallError, match="safety"):
+            self._run_learn(
+                patched_model, data_file, replay_weights={"safety": -0.5, "coding": 2.0}
+            )
+
+    def test_zero_weight_is_accepted(self, patched_model, tmp_path: Path) -> None:
+        data_file = tmp_path / "train.jsonl"
+        data_file.write_text(json.dumps({"text": "hi"}) + "\n")
+        self._run_learn(patched_model, data_file, replay_weights={"coding": 0.0, "safety": 2.0})
+
+    def test_positive_weights_accepted(self, patched_model, tmp_path: Path) -> None:
+        data_file = tmp_path / "train.jsonl"
+        data_file.write_text(json.dumps({"text": "hi"}) + "\n")
+        self._run_learn(patched_model, data_file, replay_weights={"coding": 3.0, "safety": 1.0})
+
+    def test_none_weights_accepted(self, patched_model, tmp_path: Path) -> None:
+        data_file = tmp_path / "train.jsonl"
+        data_file.write_text(json.dumps({"text": "hi"}) + "\n")
+        self._run_learn(patched_model, data_file, replay_weights=None)
+
+    def test_multiple_negative_all_named_in_error(self, patched_model, tmp_path: Path) -> None:
+        from pyrecall.model import PyrecallError
+
+        data_file = tmp_path / "train.jsonl"
+        data_file.write_text(json.dumps({"text": "hi"}) + "\n")
+        with pytest.raises(PyrecallError):
+            self._run_learn(
+                patched_model, data_file, replay_weights={"coding": -1.0, "safety": -2.0}
+            )
