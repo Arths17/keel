@@ -35,6 +35,12 @@ def _weighted_sample_without_replacement(
                 pool.pop(i)
                 weights.pop(i)
                 break
+        else:
+            # Floating-point edge case: r landed exactly on total but cumulative
+            # fell fractionally short on the last step.  Pick the last entry.
+            result.append(pool[-1]["text"])
+            pool.pop()
+            weights.pop()
     return result
 
 

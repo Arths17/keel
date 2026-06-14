@@ -533,3 +533,50 @@ class TestReplayBufferCategories:
         weights_used = sample_calls[0]
         assert weights_used is not None
         assert weights_used.get("coding", 1.0) > 1.0
+
+
+class TestWeightedSampleEdgeCases:
+    """_weighted_sample_without_replacement must always return exactly k items."""
+
+    def test_all_zero_weights_returns_full_count(self, tmp_path: Path) -> None:
+        from pyrecall.replay import ReplayBuffer
+
+        buf = ReplayBuffer("m", max_size=10, base_dir=tmp_path)
+        buf.add(["a", "b", "c", "d", "e"], categories=["coding"] * 5)
+        result = buf.sample(3, weights={"coding": 0.0})
+        assert len(result) == 3
+
+    def test_all_zero_weights_returns_strings(self, tmp_path: Path) -> None:
+        from pyrecall.replay import ReplayBuffer
+
+        buf = ReplayBuffer("m", max_size=10, base_dir=tmp_path)
+        buf.add(["x", "y", "z"], categories=["coding"] * 3)
+        result = buf.sample(3, weights={"coding": 0.0})
+        assert all(isinstance(s, str) for s in result)
+        assert set(result) <= {"x", "y", "z"}
+
+    def test_mixed_weights_some_zero_returns_full_count(self, tmp_path: Path) -> None:
+        from pyrecall.replay import ReplayBuffer
+
+        buf = ReplayBuffer("m", max_size=10, base_dir=tmp_path)
+        buf.add(["a", "b", "c"], categories=["coding", "safety", "coding"])
+        result = buf.sample(3, weights={"coding": 0.0, "safety": 1.0})
+        assert len(result) == 3
+
+    def test_float_edge_case_inner_loop_always_selects(self, tmp_path: Path) -> None:
+        from pyrecall.replay import _weighted_sample_without_replacement
+
+        pool = [{"text": str(i), "category": None} for i in range(5)]
+        weights = [0.1, 0.2, 0.3, 0.2, 0.2]
+        for _ in range(50):
+            result = _weighted_sample_without_replacement(list(pool), list(weights), k=5)
+            assert len(result) == 5, f"expected 5 items, got {len(result)}: {result}"
+
+    def test_sample_k_equals_buffer_size_returns_all(self, tmp_path: Path) -> None:
+        from pyrecall.replay import ReplayBuffer
+
+        buf = ReplayBuffer("m", max_size=10, base_dir=tmp_path)
+        texts = [f"text_{i}" for i in range(5)]
+        buf.add(texts, categories=["coding"] * 5)
+        result = buf.sample(5, weights={"coding": 0.0})
+        assert len(result) == 5
