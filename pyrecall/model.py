@@ -579,8 +579,14 @@ class Model:
             else:
                 console.print("[warning]No checkpoint found — starting from scratch.[/warning]")
 
+        streaming_cb = next((cb for cb in callbacks if isinstance(cb, _StreamingCallback)), None)
         self.model.train()
-        trainer.train(resume_from_checkpoint=resume_from)
+        try:
+            trainer.train(resume_from_checkpoint=resume_from)
+        except Exception:
+            if streaming_cb is not None:
+                streaming_cb._progress.stop()
+            raise
         self.model.eval()
 
         if self.replay_buffer is not None and new_texts:
